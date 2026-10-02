@@ -1,39 +1,54 @@
 # Tannerpress AI Control Plane
 
-A governed AI engineering control plane for planning, building, verifying, and delivering software
-through evidence-backed agent workflows.
+A small, dependency-free foundation for governed multi-agent engineering
+workflows. It provides persistent workflow state, capability-based task claims,
+approval and verification gates, delivery control, and an append-only audit
+history. Agent execution and verification remain external: workers claim tasks,
+submit results, and a verifier records the outcome.
 
-## v0.1 principle
+## Requirements
 
-> No agent declares its own work successful.
+Python 3.10 or later. No third-party packages are required.
 
-The control plane separates planning/building from verification. Generic lifecycle transitions
-cannot enter `approved`; callers must use `approveRun`, which evaluates the run's current evidence
-against every acceptance criterion. A failed verification can return to `building` for correction,
-and the newest evidence for each criterion supersedes older evidence.
+## Quick start
 
-## Current slice
+```python
+from ai_control_plane import ControlPlane
 
-- Typed run lifecycle with guarded state transitions
-- Dedicated evidence-backed approval operation
-- Verification retry path back to the Builder
-- Capability registry with explicit registration
-- Evidence-based verification gate
-- Run-ledger interface plus tested in-memory adapter
-- Reproducible CircleCI build/test gate using `npm ci`
-- Architecture/spec/task documents for the next adapters
+plane = ControlPlane("control_plane.db")
+implementer = plane.register_agent("implementer", ["implementation"])
+reviewer = plane.register_agent("reviewer", ["review"])
 
-## Planned integrations
+run_id = plane.create_run(
+    "Ship search",
+    [
+        {"name": "implement", "capability": "implementation"},
+        {"name": "review", "capability": "review", "depends_on": ["implement"]},
+    ],
+    requested_by="engineering-lead",
+)
+plane.decide_run(run_id, approved=True, decided_by="approver")
 
-OpenAI Agents SDK, Supabase, GitHub/Tunnel Tools, CircleCI, Sixtyfour Intelligence, Google Drive,
-Data/Spreadsheets, Cloudflare, and Empire model benchmarking/routing.
+task = plane.claim_task(implementer)
+plane.complete_task(task["id"], {"change": "Search is implemented"})
+task = plane.claim_task(reviewer)
+plane.complete_task(task["id"], {"approved": True})
 
-## Commands
-
-```bash
-npm ci --ignore-scripts
-npm test
-npm run build
+plane.verify_run(run_id, passed=True, verified_by="ci")
+plane.deliver_run(run_id, delivered_by="release-manager")
+print(plane.get_run(run_id))
+print(plane.get_audit_events(run_id))
+plane.close()
 ```
 
-Node.js 22+ is required.
+Runs must be explicitly approved before work can be claimed. Task dependencies
+must complete before dependent work becomes available, and delivery is allowed
+only after every task is complete and verification passes. Each lifecycle
+transition is recorded with its actor and details. Rejected and failed runs
+cannot be delivered.
+
+## Tests
+
+```sh
+python -m unittest discover -s tests -v
+```
