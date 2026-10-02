@@ -26,6 +26,17 @@ test('approves only when every acceptance criterion has passing evidence for the
   assert.deepEqual(result, { approved: true, missing: [], failed: [] });
 });
 
+test('rejects blank or whitespace-only acceptance criteria', () => {
+  assert.deepEqual(
+    verifyAcceptance([''], [], 1),
+    { approved: false, missing: ['acceptance-criteria'], failed: [] }
+  );
+  assert.deepEqual(
+    verifyAcceptance(['   '], [], 1),
+    { approved: false, missing: ['acceptance-criteria'], failed: [] }
+  );
+});
+
 test('rejects when evidence is missing or latest current-attempt evidence is failing', () => {
   const result = verifyAcceptance(
     ['unit-tests', 'secret-scan', 'build'],

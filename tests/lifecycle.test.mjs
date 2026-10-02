@@ -14,11 +14,20 @@ const baseRun = {
   updatedAt: '2026-10-02T20:00:00.000Z'
 };
 
-test('allows governed build and verification transitions including retry', () => {
+test('allows governed build and verification transitions including idempotent building reuse', () => {
   assert.equal(canTransition('planned', 'building'), true);
+  assert.equal(canTransition('building', 'building'), true);
   assert.equal(canTransition('building', 'verifying'), true);
   assert.equal(canTransition('verifying', 'building'), true);
   assert.equal(canTransition('approved', 'completed'), true);
+});
+
+test('reusing building keeps the attempt but advances revision', () => {
+  const building = { ...baseRun, status: 'building', attempt: 1, revision: 1 };
+  const reused = transitionRun(building, 'building', '2026-10-02T20:00:30.000Z');
+  assert.equal(reused.attempt, 1);
+  assert.equal(reused.revision, 2);
+  assert.equal(reused.status, 'building');
 });
 
 test('generic transitions cannot approve a run', () => {

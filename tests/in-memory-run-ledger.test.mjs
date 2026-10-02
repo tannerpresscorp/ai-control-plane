@@ -1,5 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import { approveRun } from '../dist/core/lifecycle.js';
 import { InMemoryRunLedger } from '../dist/ledger/in-memory-run-ledger.js';
 
 const run = {
@@ -28,7 +29,7 @@ test('create/get/update enforce run existence and duplicate rules', async () => 
   );
 });
 
-test('evidence append/list preserves order for a positive current attempt', async () => {
+test('evidence append/list preserves order and invalidates the run revision', async () => {
   const ledger = new InMemoryRunLedger();
   const building = { ...run, status: 'building', attempt: 1 };
   await ledger.create(building);
@@ -49,7 +50,10 @@ test('evidence append/list preserves order for a positive current attempt', asyn
   };
 
   await ledger.appendEvidence(run.id, first);
+  assert.equal((await ledger.get(run.id))?.revision, 1);
+
   await ledger.appendEvidence(run.id, second);
+  assert.equal((await ledger.get(run.id))?.revision, 2);
 
   assert.deepEqual(await ledger.listEvidence(run.id), [first, second]);
   await assert.rejects(() => ledger.appendEvidence('missing', first), /not found/);
@@ -107,6 +111,48 @@ test('rejects stale run updates using optimistic revision checks', async () => {
   assert.equal((await ledger.get(run.id))?.status, 'building');
 });
 
+test('evidence appended after an approval snapshot makes that approval stale', async () => {
+  const ledger = new InMemoryRunLedger();
+  const verifying = {
+    ...run,
+    status: 'verifying',
+    attempt: 1,
+    revision: 2
+  };
+  await ledger.create(verifying);
+
+  await ledger.appendEvidence(run.id, {
+    criterionId: 'tests',
+    status: 'pass',
+    source: 'ci',
+    detail: 'passing snapshot',
+    attempt: 1
+  });
+
+  const snapshot = await ledger.get(run.id);
+  const passingEvidence = await ledger.listEvidence(run.id, 1);
+
+  await ledger.appendEvidence(run.id, {
+    criterionId: 'tests',
+    status: 'fail',
+    source: 'ci',
+    detail: 'new failure',
+    attempt: 1
+  });
+
+  const approved = approveRun(
+    snapshot,
+    passingEvidence,
+    '2026-10-02T00:01:00Z'
+  );
+
+  await assert.rejects(
+    () => ledger.update(approved),
+    /Stale run update/
+  );
+  assert.equal((await ledger.get(run.id))?.status, 'verifying');
+});
+
 test('lists only evidence for the requested build attempt', async () => {
   const ledger = new InMemoryRunLedger();
   const firstAttempt = { ...run, status: 'building', attempt: 1, revision: 0 };
@@ -120,7 +166,7 @@ test('lists only evidence for the requested build attempt', async () => {
     attempt: 1
   });
 
-  await ledger.update({ ...firstAttempt, attempt: 2, revision: 1 });
+  await ledger.update({ ...firstAttempt, attempt: 2, revision: 2 });
   await ledger.appendEvidence(run.id, {
     criterionId: 'tests',
     status: 'fail',
