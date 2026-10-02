@@ -4,14 +4,18 @@
   - Acceptance: Builder cannot skip verification.
   - Verify: `tests/lifecycle.test.mjs`
 - [x] Define evidence-based verifier.
-  - Acceptance: missing or failed evidence blocks approval.
+  - Acceptance: verification requires a positive attempt and missing/failed evidence blocks approval.
   - Verify: `tests/verifier.test.mjs`
 - [x] Define capability registry.
   - Acceptance: unregistered capabilities do not resolve; duplicates fail.
   - Verify: `tests/capabilities.test.mjs`
 - [x] Define run-ledger persistence port and local adapter.
 - [x] Add CircleCI build/test gate.
-- [ ] Implement Supabase `RunLedger` adapter with RLS-backed schema.
+- [x] Implement Supabase `RunLedger` persistence boundary and server-only schema source.
+  - Acceptance: RLS enabled; evidence append is atomic; pagination handles server caps.
+  - Verify: `tests/supabase-run-ledger.test.mjs`
+- [ ] Bind `SupabaseClientPort` to a pinned `@supabase/supabase-js` dependency with an actual SDK contract test.
+- [ ] Provision a dedicated Supabase project and generate/apply the real migration.
 - [ ] Implement OpenAI Architect/Builder/Verifier runtime adapter.
 - [ ] Add GitHub/Tunnel capability adapter.
 - [ ] Add CircleCI evidence ingestion adapter.
