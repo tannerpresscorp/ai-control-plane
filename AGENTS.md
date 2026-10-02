@@ -21,9 +21,10 @@ For changes to shared workflow behavior, run both `npm test` and `python -m unit
 - No agent, Builder, or Verifier narrative may approve its own work. Approval is a deterministic policy decision over ledger evidence.
 - Approval requires a positive build-attempt scope and uses only evidence from that attempt.
 - Approval must reload evidence immediately before the decision.
-- A verification retry returns the run to `building`; `buildRun()` must be able to reuse an already-`building` run rather than forcing an illegal self-transition.
+- Every evidence append increments the run revision so an approval computed from an older evidence snapshot cannot be committed.
+- A verification retry returns the run to `building`; `building → building` is an explicit idempotent lifecycle path that preserves the attempt number.
 - Advisory-agent failures must not bypass or suppress deterministic evidence evaluation.
-- Runtime plans must contain at least one non-empty acceptance criterion at the governance boundary.
+- Runtime plans and persisted acceptance criteria must contain at least one non-blank criterion.
 - Evidence insertion must atomically validate the run's current build attempt before persisting the evidence.
 - External SDK adapters must be exercised through the consumer path with a production-shaped fake or an actual pinned SDK contract test; callable-only mocks are insufficient.
 - Do not claim direct SDK type compatibility unless the real pinned package is part of the lockfile and the contract test compiles against its exported types.

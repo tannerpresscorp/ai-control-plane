@@ -89,6 +89,7 @@ function fakeClient({ pageSize = 1000 } = {}) {
         source: args.p_source,
         detail: args.p_detail
       });
+      run.revision += 1;
 
       return thenable({ data: null, error: null });
     },
@@ -165,6 +166,26 @@ test('uses optimistic revision checks for updates', async () => {
   );
 });
 
+test('evidence append increments the run revision', async () => {
+  const ledger = new SupabaseRunLedger(fakeClient());
+  const building = {
+    ...run,
+    status: 'building',
+    attempt: 1
+  };
+  await ledger.create(building);
+
+  await ledger.appendEvidence(run.id, {
+    criterionId: 'tests-pass',
+    status: 'pass',
+    source: 'ci',
+    detail: 'passed',
+    attempt: 1
+  });
+
+  assert.equal((await ledger.get(run.id))?.revision, 1);
+});
+
 test('paginates all evidence when the server caps responses below the requested range', async () => {
   const ledger = new SupabaseRunLedger(fakeClient({ pageSize: 2 }));
   const firstAttempt = {
@@ -186,7 +207,7 @@ test('paginates all evidence when the server caps responses below the requested 
   await ledger.update({
     ...firstAttempt,
     attempt: 2,
-    revision: 1
+    revision: 2
   });
 
   for (let i = 0; i < 5; i += 1) {
@@ -206,7 +227,7 @@ test('paginates all evidence when the server caps responses below the requested 
   assert.ok(evidence.every((item) => item.attempt === 2));
 });
 
-test('schema stores revision/attempt and exposes an atomic service-role evidence RPC', async () => {
+test('schema enforces meaningful criteria and atomic evidence revision invalidation', async () => {
   const sql = (
     await readFile(
       new URL('../supabase/schema/control_plane_ledger.sql', import.meta.url),
@@ -216,6 +237,8 @@ test('schema stores revision/attempt and exposes an atomic service-role evidence
 
   assert.match(sql, /attempt integer not null/);
   assert.match(sql, /revision bigint not null/);
+  assert.match(sql, /jsonb_path_exists/);
+  assert.match(sql, /like_regex/);
   assert.match(sql, /control_plane_evidence[\s\S]*attempt integer not null/);
   assert.match(
     sql,
@@ -234,6 +257,7 @@ test('schema stores revision/attempt and exposes an atomic service-role evidence
     /create or replace function public\.append_control_plane_evidence/
   );
   assert.match(sql, /for update/);
+  assert.match(sql, /set revision = revision \+ 1/);
   assert.match(
     sql,
     /grant execute on function public\.append_control_plane_evidence/
