@@ -2,22 +2,25 @@
 
 ## Objective
 
-Establish a small, deterministic foundation for a governed agent system before adding live model/provider integrations. v0.1 must prove that run lifecycle rules and verification gates can be tested independently of LLM behavior.
+Establish a small, deterministic foundation for a governed agent system before adding live
+model/provider integrations. v0.1 must prove that run lifecycle rules and verification gates can
+be tested independently of LLM behavior.
 
 ## Tech Stack
 
 - Node.js 22+
-- TypeScript 5.8.x
+- TypeScript 5.8.3
 - Node built-in test runner
 - CircleCI 2.1 configuration
 - No runtime dependencies in the core package
 
-OpenAI Agents SDK, Supabase, and external provider SDKs are deliberately deferred to adapters in later slices.
+OpenAI Agents SDK, Supabase, and external provider SDKs are deliberately deferred to adapters in
+later slices.
 
 ## Commands
 
 ```bash
-npm install --ignore-scripts
+npm ci --ignore-scripts
 npm run build
 npm test
 npm run check
@@ -34,30 +37,20 @@ tasks/          implementation plan and task list
 .circleci/      CI verification gate
 ```
 
-## Code Style
-
-Use small pure functions for policy decisions and ports/interfaces for external boundaries.
-
-```ts
-if (!canTransition(run.status, nextStatus)) {
-  throw new Error(`Illegal run transition: ${run.status} -> ${nextStatus}`);
-}
-```
-
-Provider-specific code must not be imported into `src/core`.
-
 ## Testing Strategy
 
-- Small deterministic tests for lifecycle, registry and verification rules.
+- Small deterministic tests for lifecycle, registry, verification, and ledger behavior.
 - Integration tests will be added per adapter.
 - End-to-end tests will be added only after an agent runtime and staging environment exist.
-- A failed/missing acceptance criterion must prevent approval.
+- A failed or missing acceptance criterion must prevent approval.
+- Evidence is ordered; the newest record for a criterion supersedes older evidence.
 
 ## Boundaries
 
 ### Always
 
-- Require evidence for acceptance criteria.
+- Require `approveRun` and passing evidence before entering `approved`.
+- Allow failed verification to return to `building` for another attempt.
 - Keep core policy provider-neutral.
 - Run tests before proposing a merge.
 - Treat secrets as external configuration.
@@ -66,7 +59,7 @@ Provider-specific code must not be imported into `src/core`.
 
 - Production deployment.
 - Destructive provider actions.
-- Schema migrations that remove/transform persisted data.
+- Schema migrations that remove or transform persisted data.
 - Changes that weaken verification requirements.
 
 ### Never
@@ -78,12 +71,16 @@ Provider-specific code must not be imported into `src/core`.
 
 ## Success Criteria
 
-1. `building -> approved` is rejected by the lifecycle.
-2. `verifying -> approved` is allowed.
-3. Approval fails when any acceptance criterion is missing or failed.
-4. Capabilities must be explicitly registered before resolution.
-5. All v0.1 tests pass locally and in CircleCI.
-6. External providers remain behind ports/adapters.
+1. Generic transitions cannot enter `approved`.
+2. `approveRun` rejects missing or failing evidence.
+3. `approveRun` succeeds only from `verifying` with passing evidence.
+4. `verifying -> building` supports correction/retry.
+5. Newer evidence for a criterion supersedes older evidence.
+6. Capabilities must be explicitly registered before resolution.
+7. In-memory persistence behavior is covered by tests.
+8. Package exports resolve to the compiled public API.
+9. CI uses the committed lockfile with `npm ci`.
+10. External providers remain behind ports/adapters.
 
 ## Open Questions
 

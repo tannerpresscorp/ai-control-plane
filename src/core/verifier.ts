@@ -4,21 +4,18 @@ export function verifyAcceptance(
   acceptanceCriteria: readonly string[],
   evidence: readonly VerificationEvidence[]
 ): VerificationResult {
+  const latestByCriterion = new Map<string, VerificationEvidence>();
+  for (const item of evidence) latestByCriterion.set(item.criterionId, item);
+
   const missing: string[] = [];
   const failed: string[] = [];
 
   for (const criterionId of acceptanceCriteria) {
-    const matching = evidence.filter((item) => item.criterionId === criterionId);
-    if (matching.length === 0) {
+    const latest = latestByCriterion.get(criterionId);
+    if (!latest) {
       missing.push(criterionId);
-      continue;
-    }
-    if (matching.some((item) => item.status === 'fail')) {
+    } else if (latest.status === 'fail') {
       failed.push(criterionId);
-      continue;
-    }
-    if (!matching.some((item) => item.status === 'pass')) {
-      missing.push(criterionId);
     }
   }
 
