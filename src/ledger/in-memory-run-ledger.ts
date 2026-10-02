@@ -16,18 +16,35 @@ export class InMemoryRunLedger implements RunLedger {
   }
 
   async update(run: RunRecord): Promise<void> {
-    if (!this.#runs.has(run.id)) throw new Error(`Run not found: ${run.id}`);
+    const current = this.#runs.get(run.id);
+    if (!current) throw new Error(`Run not found: ${run.id}`);
+    if (run.revision !== current.revision + 1) {
+      throw new Error(
+        `Stale run update: ${run.id} expected revision ${current.revision + 1}, got ${run.revision}`
+      );
+    }
     this.#runs.set(run.id, structuredClone(run));
   }
 
   async appendEvidence(runId: string, evidence: VerificationEvidence): Promise<void> {
-    if (!this.#runs.has(runId)) throw new Error(`Run not found: ${runId}`);
+    const run = this.#runs.get(runId);
+    if (!run) throw new Error(`Run not found: ${runId}`);
+    if (evidence.attempt !== run.attempt) {
+      throw new Error(
+        `Evidence attempt mismatch: ${runId} expected ${run.attempt}, got ${evidence.attempt}`
+      );
+    }
     const items = this.#evidence.get(runId) ?? [];
     items.push(structuredClone(evidence));
     this.#evidence.set(runId, items);
   }
 
-  async listEvidence(runId: string): Promise<readonly VerificationEvidence[]> {
-    return structuredClone(this.#evidence.get(runId) ?? []);
+  async listEvidence(
+    runId: string,
+    attempt?: number
+  ): Promise<readonly VerificationEvidence[]> {
+    const items = this.#evidence.get(runId) ?? [];
+    const scoped = attempt === undefined ? items : items.filter((item) => item.attempt === attempt);
+    return structuredClone(scoped);
   }
 }

@@ -5,5 +5,5 @@ export interface RunLedger {
   get(runId: string): Promise<RunRecord | undefined>;
   update(run: RunRecord): Promise<void>;
   appendEvidence(runId: string, evidence: VerificationEvidence): Promise<void>;
-  listEvidence(runId: string): Promise<readonly VerificationEvidence[]>;
+  listEvidence(runId: string, attempt?: number): Promise<readonly VerificationEvidence[]>;
 }

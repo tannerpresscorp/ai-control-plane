@@ -11,11 +11,14 @@
       "import": "./dist/index.js"
     }
   },
-  "engines": { "node": ">=22" },
+  "engines": {
+    "node": ">=22"
+  },
   "scripts": {
     "build": "tsc -p tsconfig.json",
-    "test": "npm run build && node --test tests/*.test.mjs",
-    "check": "npm test"
+    "test": "npm run build && npm run typecheck:contracts && node --test tests/*.test.mjs",
+    "check": "npm test",
+    "typecheck:contracts": "tsc -p tsconfig.contract-tests.json"
   },
   "devDependencies": {
     "typescript": "5.8.3"
