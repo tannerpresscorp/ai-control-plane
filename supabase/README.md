@@ -4,8 +4,7 @@ The control-plane ledger is intentionally server-only.
 
 ## Schema source
 
-`schema/control_plane_ledger.sql` is the reviewed SQL source for the first ledger schema.
-It is **not** a generated migration file.
+`schema/control_plane_ledger.sql` is the reviewed SQL source for the ledger schema. It is **not** a generated migration file.
 
 When the dedicated Supabase project is provisioned:
 
@@ -19,9 +18,15 @@ When the dedicated Supabase project is provisioned:
 
 ## Access model
 
-- `anon`: no access
-- `authenticated`: no access
-- server secret / `service_role`: minimum table/sequence grants required by the ledger adapter
+- `anon`: no table or RPC access
+- `authenticated`: no table or RPC access
+- `service_role`: minimum run/evidence table grants plus execute permission on the evidence RPC
 - no client RLS policies are created
 
-This keeps the ledger out of the application-facing Data API while still enabling RLS as defense in depth.
+## Evidence append
+
+Evidence must be associated with a positive, current build attempt. The application calls `append_control_plane_evidence`, which locks the run row with `FOR UPDATE`, validates the current attempt, and inserts the evidence in the same database operation.
+
+## SDK boundary
+
+The repository currently exposes a narrow `SupabaseClientPort`; it does not claim direct type compatibility with `@supabase/supabase-js`. Direct binding requires a pinned package version, committed lockfile, and an actual SDK contract test.
