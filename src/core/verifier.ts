@@ -3,16 +3,20 @@ import type { VerificationEvidence, VerificationResult } from './types.js';
 export function verifyAcceptance(
   acceptanceCriteria: readonly string[],
   evidence: readonly VerificationEvidence[],
-  attempt?: number
+  attempt: number
 ): VerificationResult {
+  if (!Number.isInteger(attempt) || attempt <= 0) {
+    throw new Error('Verification requires a positive build attempt');
+  }
+
   if (acceptanceCriteria.length === 0) {
     return { approved: false, missing: ['acceptance-criteria'], failed: [] };
   }
 
-  const scopedEvidence =
-    attempt === undefined ? evidence : evidence.filter((item) => item.attempt === attempt);
   const latestByCriterion = new Map<string, VerificationEvidence>();
-  for (const item of scopedEvidence) latestByCriterion.set(item.criterionId, item);
+  for (const item of evidence) {
+    if (item.attempt === attempt) latestByCriterion.set(item.criterionId, item);
+  }
 
   const missing: string[] = [];
   const failed: string[] = [];
