@@ -20,8 +20,9 @@ type SupabaseTable = {
   update(value: unknown): QueryBuilder;
 };
 
-export interface SupabaseClientLike {
+export interface SupabaseClientPort {
   from(table: string): SupabaseTable;
+  rpc(name: string, args: Readonly<Record<string, unknown>>): Awaitable<SupabaseResponse<unknown>>;
 }
 
 const RUNS_TABLE = 'control_plane_runs';
@@ -65,7 +66,7 @@ function rowToRun(row: Row): RunRecord {
 }
 
 export class SupabaseRunLedger implements RunLedger {
-  constructor(private readonly client: SupabaseClientLike) {}
+  constructor(private readonly client: SupabaseClientPort) {}
 
   async create(run: RunRecord): Promise<void> {
     const { error } = await this.client.from(RUNS_TABLE).insert(runToRow(run));
@@ -102,21 +103,17 @@ export class SupabaseRunLedger implements RunLedger {
   }
 
   async appendEvidence(runId: string, evidence: VerificationEvidence): Promise<void> {
-    const run = await this.get(runId);
-    if (!run) throw new Error(`Run not found: ${runId}`);
-    if (evidence.attempt !== run.attempt) {
-      throw new Error(
-        `Evidence attempt mismatch: ${runId} expected ${run.attempt}, got ${evidence.attempt}`
-      );
+    if (!Number.isInteger(evidence.attempt) || evidence.attempt <= 0) {
+      throw new Error('Evidence requires a positive build attempt');
     }
 
-    const { error } = await this.client.from(EVIDENCE_TABLE).insert({
-      run_id: runId,
-      attempt: evidence.attempt,
-      criterion_id: evidence.criterionId,
-      status: evidence.status,
-      source: evidence.source,
-      detail: evidence.detail
+    const { error } = await this.client.rpc('append_control_plane_evidence', {
+      p_run_id: runId,
+      p_attempt: evidence.attempt,
+      p_criterion_id: evidence.criterionId,
+      p_status: evidence.status,
+      p_source: evidence.source,
+      p_detail: evidence.detail
     });
     assertNoError('append evidence', error);
   }
@@ -126,8 +123,9 @@ export class SupabaseRunLedger implements RunLedger {
     attempt?: number
   ): Promise<readonly VerificationEvidence[]> {
     const rows: Row[] = [];
+    let from = 0;
 
-    for (let from = 0; ; from += PAGE_SIZE) {
+    for (;;) {
       let query = this.client
         .from(EVIDENCE_TABLE)
         .select('criterion_id,status,source,detail,attempt,id')
@@ -138,9 +136,11 @@ export class SupabaseRunLedger implements RunLedger {
         .order('id', { ascending: true })
         .range(from, from + PAGE_SIZE - 1);
       assertNoError('list evidence', error);
+
       const page = data ?? [];
+      if (page.length === 0) break;
       rows.push(...page);
-      if (page.length < PAGE_SIZE) break;
+      from += page.length;
     }
 
     return rows.map((row) => ({
