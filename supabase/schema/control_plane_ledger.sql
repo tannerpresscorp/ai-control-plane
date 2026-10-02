@@ -8,6 +8,10 @@ create table if not exists public.control_plane_runs (
     check (
       jsonb_typeof(acceptance_criteria) = 'array'
       and jsonb_array_length(acceptance_criteria) > 0
+      and not jsonb_path_exists(
+        acceptance_criteria,
+        '$[*] ? (@.type() != "string" || @ like_regex "^\\s*$")'
+      )
     ),
   requested_capabilities jsonb not null default '[]'::jsonb
     check (jsonb_typeof(requested_capabilities) = 'array'),
@@ -86,6 +90,10 @@ begin
     p_source,
     p_detail
   );
+
+  update public.control_plane_runs
+    set revision = revision + 1
+    where id = p_run_id;
 end;
 $$;
 
@@ -110,4 +118,4 @@ comment on table public.control_plane_evidence is
   'Append-only server evidence scoped to a specific build attempt.';
 
 comment on function public.append_control_plane_evidence(text, integer, text, text, text, text) is
-  'Atomically validates the current build attempt and appends verification evidence.';
+  'Atomically validates the current build attempt, appends evidence, and invalidates stale run snapshots.';

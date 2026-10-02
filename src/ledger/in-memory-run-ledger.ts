@@ -37,9 +37,18 @@ export class InMemoryRunLedger implements RunLedger {
         `Evidence attempt mismatch: ${runId} expected ${run.attempt}, got ${evidence.attempt}`
       );
     }
+
     const items = this.#evidence.get(runId) ?? [];
     items.push(structuredClone(evidence));
     this.#evidence.set(runId, items);
+
+    this.#runs.set(
+      runId,
+      structuredClone({
+        ...run,
+        revision: run.revision + 1
+      })
+    );
   }
 
   async listEvidence(

@@ -3,7 +3,7 @@ import { verifyAcceptance } from './verifier.js';
 
 const TRANSITIONS: Readonly<Record<RunStatus, readonly RunStatus[]>> = {
   planned: ['building', 'failed'],
-  building: ['verifying', 'failed'],
+  building: ['building', 'verifying', 'failed'],
   verifying: ['building', 'failed'],
   approved: ['completed', 'failed'],
   completed: [],

@@ -9,7 +9,10 @@ export function verifyAcceptance(
     throw new Error('Verification requires a positive build attempt');
   }
 
-  if (acceptanceCriteria.length === 0) {
+  if (
+    acceptanceCriteria.length === 0 ||
+    acceptanceCriteria.some((criterion) => criterion.trim().length === 0)
+  ) {
     return { approved: false, missing: ['acceptance-criteria'], failed: [] };
   }
 
