@@ -11,7 +11,10 @@
   - Verify: `tests/capabilities.test.mjs`
 - [x] Define run-ledger persistence port and local adapter.
 - [x] Add CircleCI build/test gate.
-- [ ] Implement Supabase `RunLedger` adapter with RLS-backed schema.
+- [x] Implement Supabase-compatible `RunLedger` adapter and server-only schema source.
+  - Acceptance: RLS enabled; client roles denied; server grants explicit.
+  - Verify: `tests/supabase-run-ledger.test.mjs`
+- [ ] Provision a dedicated Supabase project and generate/apply the real migration.
 - [ ] Implement OpenAI Architect/Builder/Verifier runtime adapter.
 - [ ] Add GitHub/Tunnel capability adapter.
 - [ ] Add CircleCI evidence ingestion adapter.
