@@ -59,20 +59,38 @@ test('evidence append/list preserves order and invalidates the run revision', as
   await assert.rejects(() => ledger.appendEvidence('missing', first), /not found/);
 });
 
-test('rejects pre-build attempt-zero evidence', async () => {
-  const ledger = new InMemoryRunLedger();
-  await ledger.create(run);
-
+test('rejects evidence before building and after terminal approval', async () => {
+  const beforeBuild = new InMemoryRunLedger();
+  await beforeBuild.create(run);
   await assert.rejects(
     () =>
-      ledger.appendEvidence(run.id, {
+      beforeBuild.appendEvidence(run.id, {
         criterionId: 'tests',
         status: 'pass',
         source: 'ci',
         detail: 'early',
         attempt: 0
       }),
-    /positive build attempt/
+    /building or verifying/
+  );
+
+  const afterApproval = new InMemoryRunLedger();
+  await afterApproval.create({
+    ...run,
+    status: 'approved',
+    attempt: 1,
+    revision: 4
+  });
+  await assert.rejects(
+    () =>
+      afterApproval.appendEvidence(run.id, {
+        criterionId: 'tests',
+        status: 'fail',
+        source: 'ci',
+        detail: 'late',
+        attempt: 1
+      }),
+    /building or verifying/
   );
 });
 

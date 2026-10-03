@@ -29,6 +29,9 @@ export class InMemoryRunLedger implements RunLedger {
   async appendEvidence(runId: string, evidence: VerificationEvidence): Promise<void> {
     const run = this.#runs.get(runId);
     if (!run) throw new Error(`Run not found: ${runId}`);
+    if (run.status !== 'building' && run.status !== 'verifying') {
+      throw new Error('Evidence can only be appended while run is building or verifying');
+    }
     if (!Number.isInteger(evidence.attempt) || evidence.attempt <= 0) {
       throw new Error('Evidence requires a positive build attempt');
     }
