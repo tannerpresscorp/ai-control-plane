@@ -30,7 +30,7 @@ function canTransition(current, next) {
   );
 }
 
-function fakeClient({ pageSize = 1000 } = {}) {
+function fakeClient({ pageSize = 1000, approveReturnsArray = false } = {}) {
   const tables = new Map();
   const rows = (name) => {
     if (!tables.has(name)) tables.set(name, []);
@@ -157,7 +157,7 @@ function fakeClient({ pageSize = 1000 } = {}) {
         run.status = 'approved';
         run.updated_at = args.p_updated_at;
         run.revision += 1;
-        return thenable({ data: structuredClone(run), error: null });
+        return thenable({ data: approveReturnsArray ? [structuredClone(run)] : structuredClone(run), error: null });
       }
 
       return thenable({ data: null, error: { message: 'unknown rpc' } });
@@ -261,6 +261,18 @@ test('rejects evidence outside building and verifying states', async () => {
     () => ledger.appendEvidence(run.id, { criterionId: 'tests-pass', status: 'fail', source: 'ci', detail: 'late', attempt: 1 }),
     /building or verifying/
   );
+});
+
+
+
+test('approval unwraps PostgREST one-row RPC arrays', async () => {
+  const ledger = new SupabaseRunLedger(fakeClient({ approveReturnsArray: true }));
+  await createVerifyingRun(ledger);
+  await ledger.appendEvidence(run.id, { criterionId: 'tests-pass', status: 'pass', source: 'ci', detail: 'passed', attempt: 1 });
+
+  const approved = await ledger.approve(run.id, '2026-10-02T21:01:00.000Z');
+  assert.equal(approved.status, 'approved');
+  assert.equal(approved.id, run.id);
 });
 
 test('paginates all evidence when the server caps responses below the requested range', async () => {

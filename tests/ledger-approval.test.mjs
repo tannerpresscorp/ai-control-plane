@@ -3,9 +3,16 @@ import assert from 'node:assert/strict';
 import { InMemoryRunLedger } from '../dist/ledger/in-memory-run-ledger.js';
 import { SupabaseRunLedger } from '../dist/ledger/supabase-run-ledger.js';
 
-const verifyingRun={id:'run-approval',objective:'Approve safely',status:'verifying',acceptanceCriteria:['tests-pass'],requestedCapabilities:['repo.read'],attempt:1,revision:2,createdAt:'2026-10-03T00:00:00.000Z',updatedAt:'2026-10-03T00:00:00.000Z'};
+const plannedRun={id:'run-approval',objective:'Approve safely',status:'planned',acceptanceCriteria:['tests-pass'],requestedCapabilities:['repo.read'],attempt:0,revision:0,createdAt:'2026-10-03T00:00:00.000Z',updatedAt:'2026-10-03T00:00:00.000Z'};
+const verifyingRun={...plannedRun,status:'verifying',attempt:1,revision:2};
 const dbRun={id:verifyingRun.id,objective:verifyingRun.objective,status:verifyingRun.status,acceptance_criteria:[...verifyingRun.acceptanceCriteria],requested_capabilities:[...verifyingRun.requestedCapabilities],attempt:1,revision:2,created_at:verifyingRun.createdAt,updated_at:verifyingRun.updatedAt};
+
 function thenable(value){return{then(resolve){return Promise.resolve(resolve(value));}};}
+async function createVerifyingRun(ledger){
+  await ledger.create(plannedRun);
+  await ledger.update({...plannedRun,status:'building',attempt:1,revision:1});
+  await ledger.update({...plannedRun,status:'verifying',attempt:1,revision:2});
+}
 function fakeSupabase(){
   const runs=[structuredClone(dbRun)], evidence=[];
   const builder=(selection)=>{let current=selection;return{
@@ -31,25 +38,27 @@ function fakeSupabase(){
       return thenable({data:null,error:{message:'unknown rpc'}});
     },
     from(table){const source=table==='control_plane_runs'?runs:evidence;return{
-      insert(v){source.push(...(Array.isArray(v)?v:[v]).map(structuredClone));return thenable({data:null,error:null});},
       select(){return builder(source);}
     };}
   };
 }
+
 test('in-memory approval uses latest current-attempt evidence',async()=>{
-  const ledger=new InMemoryRunLedger();await ledger.create(verifyingRun);
+  const ledger=new InMemoryRunLedger();await createVerifyingRun(ledger);
   await ledger.appendEvidence(verifyingRun.id,{criterionId:'tests-pass',status:'pass',source:'ci',detail:'first',attempt:1});
   await ledger.appendEvidence(verifyingRun.id,{criterionId:'tests-pass',status:'fail',source:'ci',detail:'latest',attempt:1});
   await assert.rejects(()=>ledger.approve(verifyingRun.id,'2026-10-03T00:01:00Z'),/failed: tests-pass/);
 });
+
 test('Supabase approval delegates to atomic approval RPC',async()=>{
   const ledger=new SupabaseRunLedger(fakeSupabase());
   await ledger.appendEvidence(verifyingRun.id,{criterionId:'tests-pass',status:'pass',source:'ci',detail:'passed',attempt:1});
   assert.equal((await ledger.approve(verifyingRun.id,'2026-10-03T00:02:00Z')).status,'approved');
 });
+
 test('generic create/update cannot persist approved state',async()=>{
   const ledger=new InMemoryRunLedger();
-  await assert.rejects(()=>ledger.create({...verifyingRun,status:'approved'}),/ledger approval/);
-  await ledger.create(verifyingRun);
+  await assert.rejects(()=>ledger.create({...plannedRun,status:'approved'}),/ledger approval/);
+  await createVerifyingRun(ledger);
   await assert.rejects(()=>ledger.update({...verifyingRun,status:'approved',revision:3}),/ledger approval/);
 });

@@ -46,6 +46,18 @@ function runToRow(run: RunRecord): Row {
     created_at: run.createdAt, updated_at: run.updatedAt
   };
 }
+
+function rpcRow(data: unknown, operation: string, runId: string): Row {
+  const row = Array.isArray(data) ? data[0] : data;
+  if (!row || typeof row !== 'object' || Array.isArray(row)) {
+    throw new Error(`Supabase ${operation} failed: missing run result for ${runId}`);
+  }
+  if (Array.isArray(data) && data.length !== 1) {
+    throw new Error(`Supabase ${operation} failed: expected one run result for ${runId}, got ${data.length}`);
+  }
+  return row as Row;
+}
+
 function rowToRun(row: Row): RunRecord {
   return {
     id: String(row.id), objective: String(row.objective),
@@ -105,9 +117,7 @@ export class SupabaseRunLedger implements RunLedger {
       p_run_id: runId, p_updated_at: updatedAt
     });
     assertNoError('approve run', error);
-    if (!data || typeof data !== 'object')
-      throw new Error(`Supabase approve run failed: missing run result for ${runId}`);
-    return rowToRun(data as Row);
+    return rowToRun(rpcRow(data, 'approve run', runId));
   }
 
   async appendEvidence(runId: string, evidence: VerificationEvidence): Promise<void> {

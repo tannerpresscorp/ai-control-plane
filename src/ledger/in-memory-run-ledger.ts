@@ -49,6 +49,9 @@ export class InMemoryRunLedger implements RunLedger {
   async create(run: RunRecord): Promise<void> {
     assertValidRun(run);
     if (run.status === 'approved') throw new Error('Approved runs must be created through ledger approval');
+    if (run.status !== 'planned') throw new Error(`Run must be created in planned state: ${run.status}`);
+    if (run.attempt !== 0) throw new Error('Run must be created at attempt 0');
+    if (run.revision !== 0) throw new Error('Run must be created at revision 0');
     if (this.#runs.has(run.id)) throw new Error(`Run already exists: ${run.id}`);
     this.#runs.set(run.id, structuredClone(run));
   }
