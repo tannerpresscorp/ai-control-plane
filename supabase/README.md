@@ -20,8 +20,9 @@ When the dedicated Supabase project is provisioned:
 
 - `anon`: no table or RPC access
 - `authenticated`: no table or RPC access
-- `service_role`: run-table access, evidence-table `SELECT`, and execute permission on the evidence RPC
-- direct `INSERT` on `control_plane_evidence` is intentionally denied
+- `service_role`: run-table `SELECT`/`INSERT`, evidence-table `SELECT`, and execute permission on the governed run-update, evidence-append, and approval RPCs
+- direct `UPDATE` on `control_plane_runs` is intentionally denied; lifecycle updates must use `update_control_plane_run`
+- direct `INSERT` on `control_plane_evidence` is intentionally denied; evidence writes must use `append_control_plane_evidence`
 - no client RLS policies are created
 
 ## Evidence append
@@ -29,6 +30,10 @@ When the dedicated Supabase project is provisioned:
 Evidence must be associated with a positive, current build attempt and may be written only while a run is `building` or `verifying`.
 
 The application calls `append_control_plane_evidence`, a `SECURITY DEFINER` function owned by `postgres` with an empty `search_path`. It locks the run row with `FOR UPDATE`, validates run state and attempt, inserts evidence, and increments the run revision in the same database operation.
+
+## Approval
+
+The application calls `approve_control_plane_run` to enter `approved`. This keeps approval ledger-owned: the database locks the current run row, evaluates current-attempt evidence, and advances the run state in one operation.
 
 ## SDK boundary
 

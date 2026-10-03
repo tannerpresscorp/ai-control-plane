@@ -106,10 +106,10 @@ export class InMemoryRunLedger implements RunLedger {
     if (evidence.attempt !== run.attempt)
       throw new Error(`Evidence attempt mismatch: ${runId} expected ${run.attempt}, got ${evidence.attempt}`);
 
+    const nextRevision = checkedNextRevision(run.revision);
     const items = this.#evidence.get(runId) ?? [];
-    items.push(structuredClone(evidence));
-    this.#evidence.set(runId, items);
-    this.#runs.set(runId, structuredClone({ ...run, revision: checkedNextRevision(run.revision) }));
+    this.#evidence.set(runId, [...items, structuredClone(evidence)]);
+    this.#runs.set(runId, structuredClone({ ...run, revision: nextRevision }));
   }
 
   async listEvidence(runId: string, attempt?: number): Promise<readonly VerificationEvidence[]> {

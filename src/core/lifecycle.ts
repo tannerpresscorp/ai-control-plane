@@ -9,6 +9,13 @@ const TRANSITIONS: Readonly<Record<RunStatus, readonly RunStatus[]>> = {
   failed: []
 };
 
+function checkedNextRevision(revision: number): number {
+  if (!Number.isSafeInteger(revision) || revision < 0 || revision >= Number.MAX_SAFE_INTEGER) {
+    throw new Error('Run revision cannot be incremented safely');
+  }
+  return revision + 1;
+}
+
 function nextAttempt(run: RunRecord, next: RunStatus): number {
   return next === 'building' && run.status !== 'building' ? run.attempt + 1 : run.attempt;
 }
@@ -40,6 +47,6 @@ export function transitionRun(run: RunRecord, next: RunStatus, updatedAt: string
     status: next,
     updatedAt,
     attempt: nextAttempt(run, next),
-    revision: run.revision + 1
+    revision: checkedNextRevision(run.revision)
   });
 }

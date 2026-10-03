@@ -10,6 +10,7 @@ test('create/get/update enforce governed transitions',async()=>{
   assert.equal((await ledger.get(run.id))?.status,'building');
   await assert.rejects(()=>ledger.update({...run,status:'building',attempt:0,revision:2}),/attempt transition/);
 });
+
 test('rejects blank criteria and unsafe revisions',async()=>{
   for(const candidate of [
     {...run,acceptanceCriteria:['   ']},
@@ -19,6 +20,7 @@ test('rejects blank criteria and unsafe revisions',async()=>{
     await assert.rejects(()=>ledger.create(candidate));
   }
 });
+
 test('evidence order, revision invalidation, and atomic approval use latest evidence',async()=>{
   const ledger=new InMemoryRunLedger();
   await ledger.create({...run,status:'verifying',attempt:1,revision:2});
@@ -27,10 +29,12 @@ test('evidence order, revision invalidation, and atomic approval use latest evid
   assert.equal((await ledger.get(run.id))?.revision,4);
   await assert.rejects(()=>ledger.approve(run.id,'2026-10-02T00:01:00Z'),/failed: tests/);
 });
+
 test('rejects evidence before building',async()=>{
   const ledger=new InMemoryRunLedger(); await ledger.create(run);
   await assert.rejects(()=>ledger.appendEvidence(run.id,{criterionId:'tests',status:'pass',source:'ci',detail:'early',attempt:0}),/building or verifying/);
 });
+
 test('approved runs reject later evidence',async()=>{
   const ledger=new InMemoryRunLedger();
   await ledger.create({...run,status:'verifying',attempt:1,revision:2});
@@ -39,8 +43,11 @@ test('approved runs reject later evidence',async()=>{
   assert.equal(approved.status,'approved');
   await assert.rejects(()=>ledger.appendEvidence(run.id,{criterionId:'tests',status:'fail',source:'ci',detail:'late',attempt:1}),/building or verifying/);
 });
-test('checked revision increment rejects overflow',async()=>{
+
+test('checked revision increment rejects overflow atomically',async()=>{
   const ledger=new InMemoryRunLedger();
   await ledger.create({...run,status:'building',attempt:1,revision:Number.MAX_SAFE_INTEGER});
   await assert.rejects(()=>ledger.appendEvidence(run.id,{criterionId:'tests',status:'pass',source:'ci',detail:'x',attempt:1}),/cannot be incremented safely/);
+  assert.deepEqual(await ledger.listEvidence(run.id), []);
+  assert.equal((await ledger.get(run.id))?.revision, Number.MAX_SAFE_INTEGER);
 });

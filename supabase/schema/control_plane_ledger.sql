@@ -8,7 +8,7 @@ create table if not exists public.control_plane_runs (
   ),
   requested_capabilities jsonb not null default '[]'::jsonb check (jsonb_typeof(requested_capabilities)='array'),
   attempt integer not null default 0 check (attempt>=0),
-  revision bigint not null default 0 check (revision>=0),
+  revision bigint not null default 0 check (revision>=0 and revision<=9007199254740991),
   created_at timestamptz not null,
   updated_at timestamptz not null
 );

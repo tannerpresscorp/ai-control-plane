@@ -5,8 +5,8 @@ export function verifyAcceptance(
   evidence: readonly VerificationEvidence[],
   attempt: number
 ): VerificationResult {
-  if (!Number.isInteger(attempt) || attempt <= 0) {
-    throw new Error('Verification requires a positive build attempt');
+  if (!Number.isSafeInteger(attempt) || attempt <= 0) {
+    throw new Error('Verification requires a positive safe-integer build attempt');
   }
 
   if (

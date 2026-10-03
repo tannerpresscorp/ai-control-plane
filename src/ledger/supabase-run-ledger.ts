@@ -29,7 +29,16 @@ const PAGE_SIZE = 1000;
 function assertNoError(operation: string, error: SupabaseError): void {
   if (error) throw new Error(`Supabase ${operation} failed: ${error.message}`);
 }
+function safeInteger(value: unknown, field: string): number {
+  const parsed = Number(value);
+  if (!Number.isSafeInteger(parsed) || parsed < 0) {
+    throw new Error(`Supabase ${field} must be a non-negative safe integer`);
+  }
+  return parsed;
+}
 function runToRow(run: RunRecord): Row {
+  safeInteger(run.attempt, 'attempt');
+  safeInteger(run.revision, 'revision');
   return {
     id: run.id, objective: run.objective, status: run.status,
     acceptance_criteria: [...run.acceptanceCriteria],
@@ -44,7 +53,8 @@ function rowToRun(row: Row): RunRecord {
     status: row.status as RunRecord['status'],
     acceptanceCriteria: Array.isArray(row.acceptance_criteria) ? row.acceptance_criteria.map(String) : [],
     requestedCapabilities: Array.isArray(row.requested_capabilities) ? row.requested_capabilities.map(String) : [],
-    attempt: Number(row.attempt), revision: Number(row.revision),
+    attempt: safeInteger(row.attempt, 'attempt'),
+    revision: safeInteger(row.revision, 'revision'),
     createdAt: String(row.created_at), updatedAt: String(row.updated_at)
   };
 }
@@ -66,6 +76,7 @@ export class SupabaseRunLedger implements RunLedger {
 
   async update(run: RunRecord): Promise<void> {
     if (run.status === 'approved') throw new Error('Approved state must be entered through ledger approval');
+    runToRow(run);
     const { error } = await this.client.rpc('update_control_plane_run', {
       p_run_id: run.id,
       p_status: run.status,
@@ -115,7 +126,7 @@ export class SupabaseRunLedger implements RunLedger {
     }
     return rows.map((row) => ({
       criterionId: String(row.criterion_id), status: row.status as VerificationEvidence['status'],
-      source: String(row.source), detail: String(row.detail), attempt: Number(row.attempt)
+      source: String(row.source), detail: String(row.detail), attempt: safeInteger(row.attempt, 'evidence attempt')
     }));
   }
 }

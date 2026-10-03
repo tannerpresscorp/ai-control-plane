@@ -141,6 +141,43 @@ test('works with the narrow Supabase client port', async () => {
   assert.deepEqual(await ledger.get(run.id), run);
 });
 
+test('rejects unsafe persisted numeric boundaries', async () => {
+  const unsafeRow = {
+    id: 'unsafe',
+    objective: 'unsafe',
+    status: 'planned',
+    acceptance_criteria: ['tests-pass'],
+    requested_capabilities: [],
+    attempt: 0,
+    revision: '9007199254740992',
+    created_at: '2026-10-02T21:00:00.000Z',
+    updated_at: '2026-10-02T21:00:00.000Z'
+  };
+  const ledger = new SupabaseRunLedger({
+    rpc() { return thenable({ data: null, error: { message: 'unused' } }); },
+    from() {
+      return {
+        insert() { return thenable({ data: null, error: null }); },
+        select() {
+          return {
+            eq() { return this; },
+            select() { return this; },
+            maybeSingle() { return thenable({ data: unsafeRow, error: null }); },
+            order() { return this; },
+            range() { return thenable({ data: [], error: null }); }
+          };
+        }
+      };
+    }
+  });
+
+  await assert.rejects(() => ledger.get('unsafe'), /revision.*safe integer/);
+  await assert.rejects(
+    () => ledger.create({ ...run, revision: Number.MAX_SAFE_INTEGER + 1 }),
+    /revision.*safe integer/
+  );
+});
+
 test('uses governed optimistic revision checks for updates', async () => {
   const ledger = new SupabaseRunLedger(fakeClient());
   await ledger.create(run);
@@ -214,6 +251,7 @@ test('schema enforces RPC-only governed evidence writes', async () => {
 
   assert.match(sql, /attempt integer not null/);
   assert.match(sql, /revision bigint not null/);
+  assert.match(sql, /revision<=9007199254740991/);
   assert.match(sql, /jsonb_path_exists/);
   assert.match(sql, /like_regex/);
   assert.match(sql, /control_plane_evidence[\s\S]*attempt integer not null/);
