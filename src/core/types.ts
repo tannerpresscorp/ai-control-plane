@@ -20,6 +20,8 @@ export interface RunRecord {
   readonly status: RunStatus;
   readonly acceptanceCriteria: readonly string[];
   readonly requestedCapabilities: readonly string[];
+  readonly attempt: number;
+  readonly revision: number;
   readonly createdAt: string;
   readonly updatedAt: string;
 }
@@ -29,6 +31,7 @@ export interface VerificationEvidence {
   readonly status: 'pass' | 'fail';
   readonly source: string;
   readonly detail: string;
+  readonly attempt: number;
 }
 
 export interface VerificationResult {

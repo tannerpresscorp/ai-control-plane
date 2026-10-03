@@ -26,17 +26,6 @@ npm test
 npm run check
 ```
 
-## Project Structure
-
-```text
-src/core/       deterministic lifecycle, capability and verification rules
-src/ledger/     persistence port and local in-memory adapter
-tests/          behavioral tests against compiled output
-docs/           capability map, architecture and specifications
-tasks/          implementation plan and task list
-.circleci/      CI verification gate
-```
-
 ## Testing Strategy
 
 - Small deterministic tests for lifecycle, registry, verification, and ledger behavior.
@@ -49,7 +38,8 @@ tasks/          implementation plan and task list
 
 ### Always
 
-- Require `approveRun` and passing evidence before entering `approved`.
+- Enter `approved` only through `RunLedger.approve(runId, updatedAt)`.
+- Let the ledger evaluate its own current run and current-attempt evidence atomically.
 - Allow failed verification to return to `building` for another attempt.
 - Keep core policy provider-neutral.
 - Run tests before proposing a merge.
@@ -64,7 +54,8 @@ tasks/          implementation plan and task list
 
 ### Never
 
-- Let the Builder approve its own run.
+- Let the Builder or Verifier approve its own run.
+- Accept an independently supplied run/evidence pair as approval authority.
 - Commit credentials or API keys.
 - Bypass failing tests/evals to make CI green.
 - Put provider credentials or service-role keys in browser code.
@@ -72,19 +63,12 @@ tasks/          implementation plan and task list
 ## Success Criteria
 
 1. Generic transitions cannot enter `approved`.
-2. `approveRun` rejects missing or failing evidence.
-3. `approveRun` succeeds only from `verifying` with passing evidence.
-4. `verifying -> building` supports correction/retry.
-5. Newer evidence for a criterion supersedes older evidence.
-6. Capabilities must be explicitly registered before resolution.
-7. In-memory persistence behavior is covered by tests.
-8. Package exports resolve to the compiled public API.
-9. CI uses the committed lockfile with `npm ci`.
+2. Generic ledger create/update cannot persist `approved`.
+3. Ledger approval rejects missing or failing current-attempt evidence.
+4. Ledger approval succeeds only for a `verifying` run with passing current evidence.
+5. `verifying -> building` supports correction/retry.
+6. Newer evidence for a criterion supersedes older evidence.
+7. Capabilities must be explicitly registered before resolution.
+8. In-memory persistence behavior is covered by tests.
+9. Package exports resolve to the compiled public API.
 10. External providers remain behind ports/adapters.
-
-## Open Questions
-
-- Exact Supabase project/region and data-retention policy.
-- CircleCI project connection and context names.
-- OpenAI project/key boundary and spend limits.
-- Which writes require human approval per provider.

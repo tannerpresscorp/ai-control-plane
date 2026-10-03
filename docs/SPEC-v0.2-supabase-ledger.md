@@ -2,70 +2,53 @@
 
 ## Objective
 
-Add a durable Supabase-compatible implementation of the `RunLedger` port without coupling
-core orchestration to Supabase APIs.
+Add a durable Supabase persistence boundary for the `RunLedger` port without coupling core orchestration to a specific client-library class.
 
 ## Access model
 
-The ledger is server-only. Browser/client roles must not be able to read or mutate control-plane
-runs or evidence.
+The ledger is server-only. Browser/client roles must not be able to read or mutate control-plane runs or evidence.
 
 - RLS enabled on both tables.
 - No `anon` or `authenticated` policies.
-- Explicit grants are limited to the server role.
-- Evidence is append-only through the application port.
-
-## Data model
-
-### `control_plane_runs`
-
-Stores the current run snapshot:
-- id
-- objective
-- lifecycle status
-- acceptance criteria
-- requested capabilities
-- created/updated timestamps
-
-### `control_plane_evidence`
-
-Stores ordered verification evidence:
-- generated id
-- run id
-- criterion id
-- pass/fail status
-- source
-- detail
-- timestamp
+- `service_role` can read evidence but cannot insert directly into the evidence table.
+- Evidence writes are exposed only through the atomic `append_control_plane_evidence` RPC.
+- Evidence may be appended only while the run is `building` or `verifying`.
 
 ## Adapter boundary
 
-`SupabaseRunLedger` accepts a structural `SupabaseClientLike` dependency. This keeps
-`@supabase/supabase-js` out of the domain/core layer and lets the composition root create the
-real client later.
+`SupabaseRunLedger` accepts a narrow `SupabaseClientPort`. The port is intentionally not claimed to be the exported `@supabase/supabase-js` client type.
 
-## Testing
+A later composition adapter must bind a pinned `@supabase/supabase-js` version to this port and include an actual SDK type/runtime contract test before direct compatibility is claimed.
 
-Unit tests use a deterministic in-memory fake with Supabase-shaped query semantics. They verify:
+## Atomic evidence append
 
-1. run round-trip mapping;
-2. update semantics and missing-run rejection;
-3. evidence append ordering;
-4. RLS and explicit least-privilege SQL grants.
+`appendEvidence()` calls the `append_control_plane_evidence` Postgres RPC. The function:
+
+1. runs as a tightly scoped `SECURITY DEFINER` function owned by `postgres`;
+2. uses an empty `search_path` and fully qualified object names;
+3. locks the run row with `FOR UPDATE`;
+4. requires the run to be `building` or `verifying`;
+5. requires a positive attempt matching the run's current attempt;
+6. inserts the evidence;
+7. increments the run revision in the same transaction.
+
+Because `service_role` has no direct evidence-table `INSERT` grant, application writes cannot bypass those invariants through the normal server client.
+
+## Pagination
+
+Evidence reads advance by the number of rows actually returned and stop only on an empty page. This remains correct when the Supabase Data API maximum is configured below the requested range size.
+
+## Verification
+
+Unit tests cover optimistic updates, positive attempt enforcement, governed run states, capped pagination, revision invalidation, and the RPC-only SQL privilege boundary.
 
 ## Migration policy
 
-The reviewed SQL lives under `supabase/schema/` until a dedicated project is provisioned.
-The real migration must be generated with the Supabase CLI rather than inventing a migration
-filename in the repository.
+The reviewed SQL lives under `supabase/schema/` until a dedicated project is provisioned. The real migration must be generated with the Supabase CLI, applied first in a non-production project, and followed by Supabase security/performance advisors.
 
-## Current Supabase constraints
+## Current Supabase references
 
-Supabase now requires explicit Data API grants for newly created tables when automatic exposure
-is disabled/default-off. RLS and grants are separate layers, so both are represented in the
-schema source.
-
-References:
-- https://supabase.com/changelog/45329-breaking-change-tables-not-exposed-to-data-and-graphql-api-automatically
 - https://supabase.com/docs/guides/database/postgres/row-level-security
+- https://supabase.com/docs/guides/database/functions
+- https://supabase.com/docs/reference/javascript/rpc
 - https://supabase.com/docs/reference/javascript/installing

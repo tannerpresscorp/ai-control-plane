@@ -4,8 +4,7 @@ The control-plane ledger is intentionally server-only.
 
 ## Schema source
 
-`schema/control_plane_ledger.sql` is the reviewed SQL source for the first ledger schema.
-It is **not** a generated migration file.
+`schema/control_plane_ledger.sql` is the reviewed SQL source for the ledger schema. It is **not** a generated migration file.
 
 When the dedicated Supabase project is provisioned:
 
@@ -19,9 +18,27 @@ When the dedicated Supabase project is provisioned:
 
 ## Access model
 
-- `anon`: no access
-- `authenticated`: no access
-- server secret / `service_role`: minimum table/sequence grants required by the ledger adapter
+- `anon`: no table or RPC access
+- `authenticated`: no table or RPC access
+- `service_role`: run-table `SELECT`, evidence-table `SELECT`, and execute permission on the governed run-create, run-update, evidence-append, and approval RPCs
+- direct `INSERT` and `UPDATE` on `control_plane_runs` are intentionally denied; run creation must use `create_control_plane_run`, lifecycle updates must use `update_control_plane_run`, and approval must use `approve_control_plane_run`
+- direct `INSERT` on `control_plane_evidence` is intentionally denied; evidence writes must use `append_control_plane_evidence`
 - no client RLS policies are created
 
-This keeps the ledger out of the application-facing Data API while still enabling RLS as defense in depth.
+## Run creation
+
+The application calls `create_control_plane_run` to create a run. The function permits only the governed initial state: `planned`, attempt `0`, and revision `0`.
+
+## Evidence append
+
+Evidence must be associated with a positive, current build attempt and may be written only while a run is `building` or `verifying`.
+
+The application calls `append_control_plane_evidence`, a `SECURITY DEFINER` function owned by `postgres` with an empty `search_path`. It locks the run row with `FOR UPDATE`, validates run state and attempt, inserts evidence, and increments the run revision in the same database operation.
+
+## Approval
+
+The application calls `approve_control_plane_run` to enter `approved`. This keeps approval ledger-owned: the database locks the current run row, evaluates current-attempt evidence, and advances the run state in one operation.
+
+## SDK boundary
+
+The repository currently exposes a narrow `SupabaseClientPort`; it does not claim direct type compatibility with `@supabase/supabase-js`. Direct binding requires a pinned package version, committed lockfile, and an actual SDK contract test.

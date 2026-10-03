@@ -11,10 +11,25 @@ Use Node.js 22+ and Python 3.10+. Run commands from the repository root:
 - `npm ci`: install the locked TypeScript development dependencies.
 - `npm run build`: compile strict TypeScript and emit declarations into `dist/`.
 - `npm test`: build, then run all Node.js tests.
-- `npm run check`: run the same build-and-test validation.
+- `npm run check`: run the same Node.js validation.
 - `python -m unittest discover -s tests -v`: run the Python test suite.
 
-This repository is a library; use the Python example in `README.md` to exercise workflows locally.
+For changes to shared workflow behavior, run both `npm test` and `python -m unittest discover -s tests -v` before requesting merge.
+
+## Non-negotiable Control-Plane Invariants
+
+- No agent, Builder, or Verifier narrative may approve its own work. Approval is a deterministic policy decision over ledger evidence.
+- Approval requires a positive build-attempt scope and uses only evidence from that attempt.
+- Approval must reload evidence immediately before the decision.
+- Every evidence append increments the run revision so an approval computed from an older evidence snapshot cannot be committed.
+- A verification retry returns the run to `building`; `building → building` is an explicit idempotent lifecycle path that preserves the attempt number.
+- Evidence may be appended only while a run is `building` or `verifying`.
+- Advisory-agent failures must not bypass or suppress deterministic evidence evaluation.
+- Runtime plans and persisted acceptance criteria must contain at least one non-blank criterion.
+- Supabase evidence writes must go through the atomic RPC only; `service_role` must not have direct `INSERT` permission on the evidence table.
+- External SDK adapters must be exercised through the consumer path with a production-shaped fake or an actual pinned SDK contract test; callable-only mocks are insufficient.
+- Do not claim direct SDK type compatibility unless the real pinned package is part of the lockfile and the contract test compiles against its exported types.
+- Keep privileged Supabase credentials server-side. Browser code must never receive `service_role` credentials.
 
 ## Coding Style & Naming Conventions
 
@@ -22,7 +37,7 @@ Follow existing TypeScript style: two-space indentation, single quotes, semicolo
 
 ## Testing Guidelines
 
-JavaScript tests use `node:test` and `node:assert/strict`, with filenames `tests/*.test.mjs`; they import compiled output. Python uses standard-library `unittest`, with `test_*.py` files and `test_*` methods. Add behavior-focused tests for lifecycle gates, missing/failed evidence, persistence, and error paths. Use temporary SQLite databases and isolated ledger fixtures. No numeric coverage threshold is configured. Run both suites for changes affecting shared workflow behavior.
+JavaScript tests use `node:test` and `node:assert/strict`, with filenames `tests/*.test.mjs`; they import compiled output. Python uses standard-library `unittest`, with `test_*.py` files and `test_*` methods. Add behavior-focused tests for lifecycle gates, attempt scoping, missing/failed evidence, persistence, concurrency, pagination, retry behavior, and error paths. Use temporary SQLite databases and isolated ledger fixtures. No numeric coverage threshold is configured.
 
 ## Commit & Pull Request Guidelines
 
