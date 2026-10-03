@@ -103,7 +103,73 @@ begin
 end;
 $$;
 
+create or replace function public.approve_control_plane_run(
+  p_run_id text,
+  p_updated_at timestamptz
+)
+returns public.control_plane_runs
+language plpgsql
+security definer
+set search_path = ''
+as $$
+declare
+  current_run public.control_plane_runs%rowtype;
+  criterion text;
+  latest_status text;
+begin
+  select *
+    into current_run
+    from public.control_plane_runs
+    where id = p_run_id
+    for update;
+
+  if not found then
+    raise exception 'Run not found: %', p_run_id
+      using errcode = 'P0002';
+  end if;
+
+  if current_run.status <> 'verifying' then
+    raise exception 'Run must be verifying before approval: %', current_run.status
+      using errcode = '23514';
+  end if;
+
+  for criterion in
+    select jsonb_array_elements_text(current_run.acceptance_criteria)
+  loop
+    select status
+      into latest_status
+      from public.control_plane_evidence
+      where run_id = p_run_id
+        and attempt = current_run.attempt
+        and criterion_id = criterion
+      order by id desc
+      limit 1;
+
+    if latest_status is null then
+      raise exception 'Verification did not pass (missing: %)', criterion
+        using errcode = '23514';
+    end if;
+
+    if latest_status <> 'pass' then
+      raise exception 'Verification did not pass (failed: %)', criterion
+        using errcode = '23514';
+    end if;
+  end loop;
+
+  update public.control_plane_runs
+    set status = 'approved',
+        updated_at = p_updated_at,
+        revision = revision + 1
+    where id = p_run_id
+    returning * into current_run;
+
+  return current_run;
+end;
+$$;
+
 alter function public.append_control_plane_evidence(text, integer, text, text, text, text)
+  owner to postgres;
+alter function public.approve_control_plane_run(text, timestamptz)
   owner to postgres;
 
 alter table public.control_plane_runs enable row level security;
@@ -114,10 +180,14 @@ revoke all on table public.control_plane_evidence from anon, authenticated, serv
 revoke all on sequence public.control_plane_evidence_id_seq from anon, authenticated, service_role;
 revoke all on function public.append_control_plane_evidence(text, integer, text, text, text, text)
   from public, anon, authenticated, service_role;
+revoke all on function public.approve_control_plane_run(text, timestamptz)
+  from public, anon, authenticated, service_role;
 
 grant select, insert, update on table public.control_plane_runs to service_role;
 grant select on table public.control_plane_evidence to service_role;
 grant execute on function public.append_control_plane_evidence(text, integer, text, text, text, text)
+  to service_role;
+grant execute on function public.approve_control_plane_run(text, timestamptz)
   to service_role;
 
 comment on table public.control_plane_runs is
@@ -128,3 +198,6 @@ comment on table public.control_plane_evidence is
 
 comment on function public.append_control_plane_evidence(text, integer, text, text, text, text) is
   'Atomically validates governed run state and build attempt, appends evidence, and invalidates stale run snapshots.';
+
+comment on function public.approve_control_plane_run(text, timestamptz) is
+  'Atomically evaluates the ledger current run and current attempt evidence, then enters approved.';

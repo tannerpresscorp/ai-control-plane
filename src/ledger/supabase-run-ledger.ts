@@ -69,6 +69,9 @@ export class SupabaseRunLedger implements RunLedger {
   constructor(private readonly client: SupabaseClientPort) {}
 
   async create(run: RunRecord): Promise<void> {
+    if (run.status === 'approved') {
+      throw new Error('Approved runs must be created through ledger approval');
+    }
     const { error } = await this.client.from(RUNS_TABLE).insert(runToRow(run));
     assertNoError('create run', error);
   }
@@ -84,6 +87,9 @@ export class SupabaseRunLedger implements RunLedger {
   }
 
   async update(run: RunRecord): Promise<void> {
+    if (run.status === 'approved') {
+      throw new Error('Approved state must be entered through ledger approval');
+    }
     const expectedRevision = run.revision - 1;
     const { data, error } = await this.client
       .from(RUNS_TABLE)
@@ -100,6 +106,18 @@ export class SupabaseRunLedger implements RunLedger {
     throw new Error(
       `Stale run update: ${run.id} expected revision ${current.revision + 1}, got ${run.revision}`
     );
+  }
+
+  async approve(runId: string, updatedAt: string): Promise<RunRecord> {
+    const { data, error } = await this.client.rpc('approve_control_plane_run', {
+      p_run_id: runId,
+      p_updated_at: updatedAt
+    });
+    assertNoError('approve run', error);
+    if (!data || typeof data !== 'object') {
+      throw new Error(`Supabase approve run failed: missing run result for ${runId}`);
+    }
+    return rowToRun(data as Row);
   }
 
   async appendEvidence(runId: string, evidence: VerificationEvidence): Promise<void> {

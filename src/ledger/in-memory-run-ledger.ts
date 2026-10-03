@@ -1,3 +1,4 @@
+import { verifyAcceptance } from '../core/verifier.js';
 import type { RunRecord, VerificationEvidence } from '../core/types.js';
 import type { RunLedger } from './ports.js';
 
@@ -16,6 +17,9 @@ export class InMemoryRunLedger implements RunLedger {
 
   async create(run: RunRecord): Promise<void> {
     assertValidAcceptanceCriteria(run);
+    if (run.status === 'approved') {
+      throw new Error('Approved runs must be created through ledger approval');
+    }
     if (this.#runs.has(run.id)) throw new Error(`Run already exists: ${run.id}`);
     this.#runs.set(run.id, structuredClone(run));
   }
@@ -27,6 +31,9 @@ export class InMemoryRunLedger implements RunLedger {
 
   async update(run: RunRecord): Promise<void> {
     assertValidAcceptanceCriteria(run);
+    if (run.status === 'approved') {
+      throw new Error('Approved state must be entered through ledger approval');
+    }
     const current = this.#runs.get(run.id);
     if (!current) throw new Error(`Run not found: ${run.id}`);
     if (run.revision !== current.revision + 1) {
@@ -35,6 +42,45 @@ export class InMemoryRunLedger implements RunLedger {
       );
     }
     this.#runs.set(run.id, structuredClone(run));
+  }
+
+  async approve(runId: string, updatedAt: string): Promise<RunRecord> {
+    const run = this.#runs.get(runId);
+    if (!run) throw new Error(`Run not found: ${runId}`);
+    if (run.status !== 'verifying') {
+      throw new Error(`Run must be verifying before approval: ${run.status}`);
+    }
+
+    const evidence = (this.#evidence.get(runId) ?? []).filter(
+      (item) => item.attempt === run.attempt
+    );
+    const result = verifyAcceptance(run.acceptanceCriteria, evidence, run.attempt);
+
+    if (!result.approved) {
+      const details = [
+        result.missing.includes('acceptance-criteria') ? 'acceptance criteria required' : '',
+        result.missing.filter((item) => item !== 'acceptance-criteria').length
+          ? `missing: ${result.missing
+              .filter((item) => item !== 'acceptance-criteria')
+              .join(', ')}`
+          : '',
+        result.failed.length ? `failed: ${result.failed.join(', ')}` : ''
+      ]
+        .filter(Boolean)
+        .join('; ');
+      throw new Error(`Verification did not pass${details ? ` (${details})` : ''}`);
+    }
+
+    const approved: RunRecord = {
+      ...run,
+      status: 'approved',
+      updatedAt,
+      revision: run.revision + 1,
+      acceptanceCriteria: [...run.acceptanceCriteria],
+      requestedCapabilities: [...run.requestedCapabilities]
+    };
+    this.#runs.set(runId, structuredClone(approved));
+    return structuredClone(approved);
   }
 
   async appendEvidence(runId: string, evidence: VerificationEvidence): Promise<void> {
