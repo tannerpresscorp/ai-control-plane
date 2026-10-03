@@ -12,11 +12,14 @@
 - [x] Define run-ledger persistence port and local adapter.
 - [x] Add CircleCI build/test gate.
 - [x] Implement Supabase `RunLedger` persistence boundary and server-only schema source.
-  - Acceptance: RLS enabled; evidence append is atomic; pagination handles server caps.
+  - Acceptance: RLS enabled; evidence append is RPC-only/atomic; pagination handles server caps; evidence invalidates stale run revisions.
   - Verify: `tests/supabase-run-ledger.test.mjs`
 - [ ] Bind `SupabaseClientPort` to a pinned `@supabase/supabase-js` dependency with an actual SDK contract test.
 - [ ] Provision a dedicated Supabase project and generate/apply the real migration.
-- [ ] Implement OpenAI Architect/Builder/Verifier runtime adapter.
+- [x] Implement governed Architect/Builder/Verifier runtime and structured executor port.
+  - Acceptance: structured outputs are locally validated; agents cannot approve runs; run revision and evidence are refreshed after advisory verification.
+  - Verify: `tests/openai-agents-runtime.test.mjs`, `tests/governed-agent-cycle.test.mjs`
+- [ ] Bind `StructuredAgentExecutor` to a pinned `@openai/agents` provider adapter with an installed-SDK contract test.
 - [ ] Add GitHub/Tunnel capability adapter.
 - [ ] Add CircleCI evidence ingestion adapter.
 - [ ] Add human approval policy for destructive/production actions.
