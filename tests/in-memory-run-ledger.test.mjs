@@ -67,3 +67,15 @@ test('evidence append increments revision after governed creation',async()=>{
   await ledger.appendEvidence(run.id,{criterionId:'tests',status:'pass',source:'ci',detail:'x',attempt:1});
   assert.equal((await ledger.get(run.id))?.revision, 2);
 });
+
+
+test('rejects evidence with non-pass-fail status', async () => {
+  const ledger = new InMemoryRunLedger();
+  await createBuildingRun(ledger);
+  await assert.rejects(
+    () => ledger.appendEvidence(run.id, { criterionId: 'tests', status: 'pending', source: 'ci', detail: 'bad', attempt: 1 }),
+    /evidence status/i
+  );
+  assert.equal((await ledger.get(run.id))?.revision, 1);
+  assert.equal((await ledger.listEvidence(run.id)).length, 0);
+});

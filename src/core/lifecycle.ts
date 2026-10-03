@@ -16,8 +16,24 @@ function checkedNextRevision(revision: number): number {
   return revision + 1;
 }
 
+function checkedCurrentAttempt(attempt: number): number {
+  if (!Number.isSafeInteger(attempt) || attempt < 0) {
+    throw new Error('Run attempt must be a non-negative safe integer');
+  }
+  return attempt;
+}
+
+function checkedNextAttempt(attempt: number): number {
+  if (!Number.isSafeInteger(attempt) || attempt < 0 || attempt >= Number.MAX_SAFE_INTEGER) {
+    throw new Error('Run attempt cannot be incremented safely');
+  }
+  return attempt + 1;
+}
+
 function nextAttempt(run: RunRecord, next: RunStatus): number {
-  return next === 'building' && run.status !== 'building' ? run.attempt + 1 : run.attempt;
+  return next === 'building' && run.status !== 'building'
+    ? checkedNextAttempt(run.attempt)
+    : checkedCurrentAttempt(run.attempt);
 }
 
 function copyRun(

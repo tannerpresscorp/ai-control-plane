@@ -50,3 +50,17 @@ test('transitionRun rejects unsafe revision overflow', () => {
     /revision cannot be incremented safely/
   );
 });
+
+
+test('transitionRun rejects unsafe attempt boundaries before advancing', () => {
+  for (const attempt of [-1, Number.NaN, Infinity]) {
+    assert.throws(
+      () => transitionRun({ ...baseRun, attempt }, 'building', '2026-10-02T20:07:00.000Z'),
+      /attempt/i
+    );
+  }
+  assert.throws(
+    () => transitionRun({ ...baseRun, attempt: Number.MAX_SAFE_INTEGER }, 'building', '2026-10-02T20:07:00.000Z'),
+    /attempt/i
+  );
+});

@@ -20,6 +20,13 @@ function checkedNextRevision(revision: number): number {
   return revision + 1;
 }
 
+function assertValidEvidence(evidence: VerificationEvidence): void {
+  if (evidence.status !== 'pass' && evidence.status !== 'fail')
+    throw new Error('Evidence status must be pass or fail');
+  if (!Number.isSafeInteger(evidence.attempt) || evidence.attempt <= 0)
+    throw new Error('Evidence requires a positive safe-integer build attempt');
+}
+
 function assertGovernedUpdate(current: RunRecord, next: RunRecord): void {
   if (next.status === 'approved')
     throw new Error('Approved state must be entered through ledger approval');
@@ -104,8 +111,7 @@ export class InMemoryRunLedger implements RunLedger {
     if (!run) throw new Error(`Run not found: ${runId}`);
     if (run.status !== 'building' && run.status !== 'verifying')
       throw new Error('Evidence can only be appended while run is building or verifying');
-    if (!Number.isSafeInteger(evidence.attempt) || evidence.attempt <= 0)
-      throw new Error('Evidence requires a positive safe-integer build attempt');
+    assertValidEvidence(evidence);
     if (evidence.attempt !== run.attempt)
       throw new Error(`Evidence attempt mismatch: ${runId} expected ${run.attempt}, got ${evidence.attempt}`);
 
