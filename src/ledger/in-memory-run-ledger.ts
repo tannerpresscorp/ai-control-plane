@@ -1,11 +1,21 @@
 import type { RunRecord, VerificationEvidence } from '../core/types.js';
 import type { RunLedger } from './ports.js';
 
+function assertValidAcceptanceCriteria(run: RunRecord): void {
+  if (
+    run.acceptanceCriteria.length === 0 ||
+    run.acceptanceCriteria.some((criterion) => criterion.trim().length === 0)
+  ) {
+    throw new Error('Run acceptance criteria must contain non-empty strings');
+  }
+}
+
 export class InMemoryRunLedger implements RunLedger {
   readonly #runs = new Map<string, RunRecord>();
   readonly #evidence = new Map<string, VerificationEvidence[]>();
 
   async create(run: RunRecord): Promise<void> {
+    assertValidAcceptanceCriteria(run);
     if (this.#runs.has(run.id)) throw new Error(`Run already exists: ${run.id}`);
     this.#runs.set(run.id, structuredClone(run));
   }
@@ -16,6 +26,7 @@ export class InMemoryRunLedger implements RunLedger {
   }
 
   async update(run: RunRecord): Promise<void> {
+    assertValidAcceptanceCriteria(run);
     const current = this.#runs.get(run.id);
     if (!current) throw new Error(`Run not found: ${run.id}`);
     if (run.revision !== current.revision + 1) {

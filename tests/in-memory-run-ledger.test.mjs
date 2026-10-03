@@ -29,6 +29,31 @@ test('create/get/update enforce run existence and duplicate rules', async () => 
   );
 });
 
+test('rejects blank acceptance criteria on create and update', async () => {
+  const createLedger = new InMemoryRunLedger();
+  await assert.rejects(
+    () =>
+      createLedger.create({
+        ...run,
+        acceptanceCriteria: ['   ']
+      }),
+    /acceptance criteria/i
+  );
+
+  const updateLedger = new InMemoryRunLedger();
+  await updateLedger.create(run);
+  await assert.rejects(
+    () =>
+      updateLedger.update({
+        ...run,
+        acceptanceCriteria: [''],
+        revision: 1
+      }),
+    /acceptance criteria/i
+  );
+  assert.deepEqual((await updateLedger.get(run.id))?.acceptanceCriteria, ['tests']);
+});
+
 test('evidence append/list preserves order and invalidates the run revision', async () => {
   const ledger = new InMemoryRunLedger();
   const building = { ...run, status: 'building', attempt: 1 };
