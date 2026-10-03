@@ -2,12 +2,18 @@ import { verifyAcceptance } from '../core/verifier.js';
 import type { RunRecord, VerificationEvidence } from '../core/types.js';
 import type { RunLedger } from './ports.js';
 
-function assertValidAcceptanceCriteria(run: RunRecord): void {
+function assertValidRun(run: RunRecord): void {
   if (
     run.acceptanceCriteria.length === 0 ||
     run.acceptanceCriteria.some((criterion) => criterion.trim().length === 0)
   ) {
     throw new Error('Run acceptance criteria must contain non-empty strings');
+  }
+  if (!Number.isSafeInteger(run.revision) || run.revision < 0) {
+    throw new Error('Run revision must be a non-negative safe integer');
+  }
+  if (!Number.isSafeInteger(run.attempt) || run.attempt < 0) {
+    throw new Error('Run attempt must be a non-negative safe integer');
   }
 }
 
@@ -16,7 +22,7 @@ export class InMemoryRunLedger implements RunLedger {
   readonly #evidence = new Map<string, VerificationEvidence[]>();
 
   async create(run: RunRecord): Promise<void> {
-    assertValidAcceptanceCriteria(run);
+    assertValidRun(run);
     if (run.status === 'approved') {
       throw new Error('Approved runs must be created through ledger approval');
     }
@@ -30,7 +36,7 @@ export class InMemoryRunLedger implements RunLedger {
   }
 
   async update(run: RunRecord): Promise<void> {
-    assertValidAcceptanceCriteria(run);
+    assertValidRun(run);
     if (run.status === 'approved') {
       throw new Error('Approved state must be entered through ledger approval');
     }
@@ -89,8 +95,8 @@ export class InMemoryRunLedger implements RunLedger {
     if (run.status !== 'building' && run.status !== 'verifying') {
       throw new Error('Evidence can only be appended while run is building or verifying');
     }
-    if (!Number.isInteger(evidence.attempt) || evidence.attempt <= 0) {
-      throw new Error('Evidence requires a positive build attempt');
+    if (!Number.isSafeInteger(evidence.attempt) || evidence.attempt <= 0) {
+      throw new Error('Evidence requires a positive safe-integer build attempt');
     }
     if (evidence.attempt !== run.attempt) {
       throw new Error(

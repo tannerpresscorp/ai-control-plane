@@ -10,7 +10,7 @@ create table if not exists public.control_plane_runs (
       and jsonb_array_length(acceptance_criteria) > 0
       and not jsonb_path_exists(
         acceptance_criteria,
-        '$[*] ? (@.type() != "string" || @ like_regex "^\\s*$")'
+        '$[*] ? (@.type() != "string" || @ like_regex "^[\\s\\uFEFF]*$")'
       )
     ),
   requested_capabilities jsonb not null default '[]'::jsonb
@@ -33,6 +33,9 @@ create table if not exists public.control_plane_evidence (
   detail text not null,
   created_at timestamptz not null default now()
 );
+
+create index if not exists control_plane_evidence_run_id_idx
+  on public.control_plane_evidence (run_id, id);
 
 create index if not exists control_plane_evidence_run_attempt_id_idx
   on public.control_plane_evidence (run_id, attempt, id);
