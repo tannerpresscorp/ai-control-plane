@@ -21,13 +21,13 @@ create table if not exists public.control_plane_evidence (
   source text not null, detail text not null,
   created_at timestamptz not null default now()
 );
-create index if not exists control_plane_evidence_run_id_idx on public.control_plane_evidence(run_id,id);
-create index if not exists control_plane_evidence_run_attempt_id_idx on public.control_plane_evidence(run_id,attempt,id);
+create index if not exists control_plane_evidence_run_id_idx on public.control_plane_evidence (run_id, id);
+create index if not exists control_plane_evidence_run_attempt_id_idx on public.control_plane_evidence (run_id, attempt, id);
 
 create or replace function public.update_control_plane_run(
  p_run_id text,p_status text,p_attempt integer,p_revision bigint,p_objective text,
  p_acceptance_criteria jsonb,p_requested_capabilities jsonb,p_updated_at timestamptz
-) returns void language plpgsql security definer set search_path='' as $$
+) returns void language plpgsql security definer set search_path = '' as $$
 declare current_run public.control_plane_runs%rowtype; expected_attempt integer;
 begin
  select * into current_run from public.control_plane_runs where id=p_run_id for update;
@@ -49,21 +49,21 @@ end; $$;
 
 create or replace function public.append_control_plane_evidence(
  p_run_id text,p_attempt integer,p_criterion_id text,p_status text,p_source text,p_detail text
-) returns void language plpgsql security definer set search_path='' as $$
+) returns void language plpgsql security definer set search_path = '' as $$
 declare current_attempt integer; current_status text;
 begin
  if p_attempt<=0 then raise exception 'Evidence attempt must be positive' using errcode='23514'; end if;
  select attempt,status into current_attempt,current_status from public.control_plane_runs where id=p_run_id for update;
  if not found then raise exception 'Run not found: %',p_run_id using errcode='P0002'; end if;
- if current_status not in ('building','verifying') then raise exception 'Evidence can only be appended while run is building or verifying' using errcode='23514'; end if;
+ if current_status not in ('building', 'verifying') then raise exception 'Evidence can only be appended while run is building or verifying' using errcode='23514'; end if;
  if current_attempt<>p_attempt then raise exception 'Evidence attempt mismatch for run %: expected %, got %',p_run_id,current_attempt,p_attempt using errcode='23514'; end if;
  insert into public.control_plane_evidence(run_id,attempt,criterion_id,status,source,detail)
  values(p_run_id,p_attempt,p_criterion_id,p_status,p_source,p_detail);
- update public.control_plane_runs set revision=revision+1 where id=p_run_id;
+ update public.control_plane_runs set revision = revision + 1 where id=p_run_id;
 end; $$;
 
 create or replace function public.approve_control_plane_run(p_run_id text,p_updated_at timestamptz)
-returns public.control_plane_runs language plpgsql security definer set search_path='' as $$
+returns public.control_plane_runs language plpgsql security definer set search_path = '' as $$
 declare current_run public.control_plane_runs%rowtype; criterion text; latest_status text;
 begin
  select * into current_run from public.control_plane_runs where id=p_run_id for update;
@@ -76,7 +76,7 @@ begin
    if latest_status is null then raise exception 'Verification did not pass (missing: %)',criterion using errcode='23514'; end if;
    if latest_status<>'pass' then raise exception 'Verification did not pass (failed: %)',criterion using errcode='23514'; end if;
  end loop;
- update public.control_plane_runs set status='approved',updated_at=p_updated_at,revision=revision+1
+ update public.control_plane_runs set status='approved',updated_at=p_updated_at,revision = revision + 1
  where id=p_run_id returning * into current_run;
  return current_run;
 end; $$;
