@@ -10,37 +10,9 @@ The ledger is server-only. Browser/client roles must not be able to read or muta
 
 - RLS enabled on both tables.
 - No `anon` or `authenticated` policies.
-- Explicit grants are limited to `service_role`.
-- Evidence is append-only through the application port.
-- Evidence append validates the active build attempt atomically inside Postgres.
-
-## Data model
-
-### `control_plane_runs`
-
-Stores the current run snapshot:
-
-- id
-- objective
-- lifecycle status
-- acceptance criteria
-- requested capabilities
-- build attempt
-- optimistic revision
-- created/updated timestamps
-
-### `control_plane_evidence`
-
-Stores ordered verification evidence:
-
-- generated id
-- run id
-- build attempt
-- criterion id
-- pass/fail status
-- source
-- detail
-- timestamp
+- `service_role` can read evidence but cannot insert directly into the evidence table.
+- Evidence writes are exposed only through the atomic `append_control_plane_evidence` RPC.
+- Evidence may be appended only while the run is `building` or `verifying`.
 
 ## Adapter boundary
 
@@ -52,30 +24,27 @@ A later composition adapter must bind a pinned `@supabase/supabase-js` version t
 
 `appendEvidence()` calls the `append_control_plane_evidence` Postgres RPC. The function:
 
-1. requires a positive attempt;
-2. locks the run row with `FOR UPDATE`;
-3. compares the requested attempt with the run's current attempt;
-4. inserts evidence only when they match.
+1. runs as a tightly scoped `SECURITY DEFINER` function owned by `postgres`;
+2. uses an empty `search_path` and fully qualified object names;
+3. locks the run row with `FOR UPDATE`;
+4. requires the run to be `building` or `verifying`;
+5. requires a positive attempt matching the run's current attempt;
+6. inserts the evidence;
+7. increments the run revision in the same transaction.
 
-This makes attempt validation and persistence one database operation and removes the client-side time-of-check/time-of-use race.
+Because `service_role` has no direct evidence-table `INSERT` grant, application writes cannot bypass those invariants through the normal server client.
 
 ## Pagination
 
 Evidence reads advance by the number of rows actually returned and stop only on an empty page. This remains correct when the Supabase Data API maximum is configured below the requested range size.
 
-## Testing
+## Verification
 
-Unit tests verify:
-
-1. run round-trip mapping;
-2. optimistic update semantics;
-3. positive attempt enforcement;
-4. evidence pagination under a lower server row cap;
-5. the atomic RPC, row lock, RLS, and least-privilege SQL grants.
+Unit tests cover optimistic updates, positive attempt enforcement, governed run states, capped pagination, revision invalidation, and the RPC-only SQL privilege boundary.
 
 ## Migration policy
 
-The reviewed SQL lives under `supabase/schema/` until a dedicated project is provisioned. The real migration must be generated with the Supabase CLI rather than inventing a migration filename in the repository.
+The reviewed SQL lives under `supabase/schema/` until a dedicated project is provisioned. The real migration must be generated with the Supabase CLI, applied first in a non-production project, and followed by Supabase security/performance advisors.
 
 ## Current Supabase references
 

@@ -23,9 +23,10 @@ For changes to shared workflow behavior, run both `npm test` and `python -m unit
 - Approval must reload evidence immediately before the decision.
 - Every evidence append increments the run revision so an approval computed from an older evidence snapshot cannot be committed.
 - A verification retry returns the run to `building`; `building → building` is an explicit idempotent lifecycle path that preserves the attempt number.
+- Evidence may be appended only while a run is `building` or `verifying`.
 - Advisory-agent failures must not bypass or suppress deterministic evidence evaluation.
 - Runtime plans and persisted acceptance criteria must contain at least one non-blank criterion.
-- Evidence insertion must atomically validate the run's current build attempt before persisting the evidence.
+- Supabase evidence writes must go through the atomic RPC only; `service_role` must not have direct `INSERT` permission on the evidence table.
 - External SDK adapters must be exercised through the consumer path with a production-shaped fake or an actual pinned SDK contract test; callable-only mocks are insufficient.
 - Do not claim direct SDK type compatibility unless the real pinned package is part of the lockfile and the contract test compiles against its exported types.
 - Keep privileged Supabase credentials server-side. Browser code must never receive `service_role` credentials.
