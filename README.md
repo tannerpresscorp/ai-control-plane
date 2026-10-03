@@ -1,14 +1,56 @@
 # Tannerpress AI Control Plane
 
-A small, dependency-free foundation for governed multi-agent engineering
-workflows. It provides persistent workflow state, capability-based task claims,
+The repository contains a dependency-free Python workflow implementation and a
+TypeScript control-plane core for governed multi-agent engineering workflows.
+The TypeScript package includes an OpenAI Agents SDK adapter that routes work
+through registered capabilities and leaves approval to deterministic ledger
+policy. The Python implementation provides capability-based task claims,
 approval and verification gates, delivery control, and an append-only audit
-history. Agent execution and verification remain external: workers claim tasks,
-submit results, and a verifier records the outcome.
+history.
 
-## Requirements
+## Python requirements
 
 Python 3.10 or later. No third-party packages are required.
+
+## TypeScript OpenAI runtime
+
+Install the package dependencies with `npm ci` and configure `OPENAI_API_KEY` in
+the server environment. Register each executable capability and its evidence
+mapping before creating a run:
+
+```ts
+import { z } from 'zod';
+import {
+  CapabilityRegistry,
+  InMemoryRunLedger,
+  OpenAIAgentRuntime
+} from '@tannerpress/ai-control-plane';
+
+const capabilities = new CapabilityRegistry();
+capabilities.register({ name: 'repo.read', provider: 'local', risk: 'read' });
+
+const runtime = new OpenAIAgentRuntime({
+  ledger: new InMemoryRunLedger(),
+  capabilities,
+  tools: {
+    'repo.read': {
+      parameters: z.object({ path: z.string() }),
+      criterionIds: ['repository-inspected'],
+      execute: async (input) => `Inspected ${JSON.stringify(input)}`
+    }
+  }
+});
+
+const run = await runtime.createRun({
+  id: 'run-1',
+  objective: 'Inspect the repository'
+});
+const result = await runtime.execute(run.id);
+```
+
+Non-read capabilities require an `authorizeCapability` callback, which receives
+the capability and exact tool input before execution. SDK tracing is disabled by
+default. Approval and verification evidence remain enforced by the run ledger.
 
 ## Quick start
 

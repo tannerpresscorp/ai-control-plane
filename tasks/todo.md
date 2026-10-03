@@ -16,7 +16,9 @@
   - Verify: `tests/supabase-run-ledger.test.mjs`
 - [ ] Bind `SupabaseClientPort` to a pinned `@supabase/supabase-js` dependency with an actual SDK contract test.
 - [ ] Provision a dedicated Supabase project and generate/apply the real migration.
-- [ ] Implement OpenAI Architect/Builder/Verifier runtime adapter.
+- [x] Implement OpenAI Architect/Builder/Verifier runtime adapter.
+  - Acceptance: SDK tools are restricted to registered requested capabilities; approval remains ledger-owned.
+  - Verify: `tests/openai-agent-runtime.test.mjs`
 - [ ] Add GitHub/Tunnel capability adapter.
 - [ ] Add CircleCI evidence ingestion adapter.
 - [ ] Add human approval policy for destructive/production actions.

@@ -1,4 +1,4 @@
-import { Agent, run, tool, type Model } from '@openai/agents';
+import { Agent, Runner, tool, type Model } from '@openai/agents';
 import { z } from 'zod';
 import { transitionRun } from '../core/lifecycle.js';
 import { verifyAcceptance } from '../core/verifier.js';
@@ -26,7 +26,10 @@ export interface OpenAIAgentRuntimeOptions {
   readonly capabilities: CapabilityRegistry;
   readonly tools: Readonly<Record<string, OpenAICapabilityTool>>;
   readonly model?: string | Model;
-  readonly authorizeCapability?: (capability: CapabilityDefinition) => boolean | Promise<boolean>;
+  readonly authorizeCapability?: (
+    capability: CapabilityDefinition,
+    input: unknown
+  ) => boolean | Promise<boolean>;
   readonly now?: () => string;
 }
 
@@ -58,6 +61,7 @@ export class OpenAIAgentRuntime {
   readonly #tools: Readonly<Record<string, OpenAICapabilityTool>>;
   readonly #model?: string | Model;
   readonly #authorizeCapability?: OpenAIAgentRuntimeOptions['authorizeCapability'];
+  readonly #runner: Runner;
   readonly #now: () => string;
 
   constructor(options: OpenAIAgentRuntimeOptions) {
@@ -66,6 +70,10 @@ export class OpenAIAgentRuntime {
     this.#tools = options.tools;
     this.#model = options.model;
     this.#authorizeCapability = options.authorizeCapability;
+    this.#runner = new Runner({
+      tracingDisabled: true,
+      traceIncludeSensitiveData: false
+    });
     this.#now = options.now ?? (() => new Date().toISOString());
   }
 
@@ -73,24 +81,41 @@ export class OpenAIAgentRuntime {
     if (!input.id.trim()) throw new Error('Run id must not be empty');
     if (!input.objective.trim()) throw new Error('Run objective must not be empty');
 
+    const availableCapabilities = Object.fromEntries(
+      Object.entries(this.#tools)
+        .filter(([name]) => this.#capabilities.resolve(name) !== undefined)
+        .map(([name, implementation]) => [name, implementation.criterionIds])
+    );
     const architect = new Agent({
       name: 'Architect',
       instructions: [
         'Create a concise, testable plan for the objective.',
         'Return acceptance criteria as short stable identifiers suitable for evidence criterion IDs.',
-        'Only request capabilities that are necessary.'
+        'Only request capabilities that are necessary and listed in the supplied capability map.',
+        'Use the criterion identifiers listed for a capability exactly when its execution can provide evidence for them.'
       ].join(' '),
       outputType: architectOutput,
       ...(this.#model === undefined ? {} : { model: this.#model })
     });
-    const result = await run(architect, input.objective);
-    const { acceptanceCriteria, requestedCapabilities } = result.finalOutput;
+    const result = await this.#runner.run(architect, JSON.stringify({
+      objective: input.objective,
+      availableCapabilities
+    }));
+    const plan = result.finalOutput;
+    if (!plan) throw new Error('Architect did not return a plan');
+    const { acceptanceCriteria, requestedCapabilities } = plan;
 
     if (
       acceptanceCriteria.length === 0 ||
       acceptanceCriteria.some((criterion) => criterion.trim().length === 0)
     ) {
       throw new Error('Architect must provide at least one non-blank acceptance criterion');
+    }
+    if (new Set(acceptanceCriteria).size !== acceptanceCriteria.length) {
+      throw new Error('Architect must not provide duplicate acceptance criteria');
+    }
+    if (new Set(requestedCapabilities).size !== requestedCapabilities.length) {
+      throw new Error('Architect must not request duplicate capabilities');
     }
 
     for (const name of requestedCapabilities) {
@@ -99,6 +124,13 @@ export class OpenAIAgentRuntime {
       }
       if (!this.#tools[name]) {
         throw new Error(`No executable tool is configured for capability: ${name}`);
+      }
+      for (const criterionId of this.#tools[name].criterionIds) {
+        if (!acceptanceCriteria.includes(criterionId)) {
+          throw new Error(
+            `Architect omitted capability ${name}'s evidence criterion: ${criterionId}`
+          );
+        }
       }
     }
 
@@ -142,10 +174,11 @@ export class OpenAIAgentRuntime {
         if (!this.#authorizeCapability) {
           throw new Error(`Capability requires explicit authorization: ${capability.name}`);
         }
-        if (!(await this.#authorizeCapability(capability))) {
-          throw new Error(`Capability authorization denied: ${capability.name}`);
-        }
       }
+    }
+    const functionNames = requestedTools.map(({ capability }) => functionToolName(capability.name));
+    if (new Set(functionNames).size !== functionNames.length) {
+      throw new Error('Requested capabilities produce colliding OpenAI tool names');
     }
 
     if (!['planned', 'building', 'verifying'].includes(initialRun.status)) {
@@ -164,6 +197,12 @@ export class OpenAIAgentRuntime {
           let status: 'pass' | 'fail' = 'pass';
           let detail: string;
           try {
+            if (capability.risk !== 'read') {
+              const authorize = this.#authorizeCapability;
+              if (!authorize || !(await authorize(capability, input))) {
+                throw new Error(`Capability authorization denied: ${capability.name}`);
+              }
+            }
             detail = outputAsText(await implementation.execute(input));
           } catch (error) {
             status = 'fail';
@@ -194,7 +233,7 @@ export class OpenAIAgentRuntime {
       tools: capabilityTools,
       ...(this.#model === undefined ? {} : { model: this.#model })
     });
-    const result = await run(
+    const result = await this.#runner.run(
       builder,
       JSON.stringify({
         objective: building.objective,

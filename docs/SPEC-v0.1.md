@@ -12,10 +12,10 @@ be tested independently of LLM behavior.
 - TypeScript 5.8.3
 - Node built-in test runner
 - CircleCI 2.1 configuration
-- No runtime dependencies in the core package
+- No runtime dependencies in the provider-neutral core
+- OpenAI Agents SDK and Zod dependencies are isolated to the OpenAI runtime adapter
 
-OpenAI Agents SDK, Supabase, and external provider SDKs are deliberately deferred to adapters in
-later slices.
+Supabase and other provider SDKs remain behind adapters.
 
 ## Commands
 

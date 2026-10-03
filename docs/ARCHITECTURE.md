@@ -32,7 +32,9 @@ Verifier ── evaluates evidence against acceptance criteria
 
 ## OpenAI runtime direction
 
-OpenAI's current Agents SDK supports agents, function tools, agents-as-tools, MCP servers, sandbox capabilities, handoffs and built-in tracing. v0.1 does not yet bind to the SDK; the later `agent-runtime` module will adapt these primitives to the deterministic core.
+`src/agent-runtime/openai-agent-runtime.ts` adapts the pinned OpenAI Agents SDK to the deterministic core. The Architect creates a persisted plan with non-blank acceptance criteria and registered requested capabilities. The Builder receives only the requested, registered capability tools; each tool call records criterion-scoped evidence. The core verifier evaluates the ledger's current-attempt evidence, and approval is committed only through `RunLedger.approve`.
+
+Capabilities with risk other than `read` require an `authorizeCapability` callback. It is called with the capability and exact tool input before execution. SDK tracing is disabled by default so prompts and tool results are not exported through a separate tracing path. Failed verification returns the run to `building` for a new attempt. The adapter does not treat model output as approval authority.
 
 Sources:
 - https://openai.github.io/openai-agents-js/
