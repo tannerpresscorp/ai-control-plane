@@ -304,6 +304,7 @@ test('schema enforces RPC-only governed writes', async () => {
   assert.match(sql, /jsonb_path_exists/);
   assert.match(sql, /like_regex/);
   assert.match(sql, /control_plane_evidence[\s\S]*attempt integer not null/);
+  assert.match(sql, /control_plane_evidence_run_attempt_criterion_id_idx[\s\S]*\(run_id, attempt, criterion_id, id\)/);
   assert.match(sql, /create or replace function public\.create_control_plane_run/);
   assert.match(sql, /create or replace function public\.update_control_plane_run/);
   assert.match(sql, /create or replace function public\.append_control_plane_evidence/);

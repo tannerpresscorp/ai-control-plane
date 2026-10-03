@@ -23,6 +23,7 @@ create table if not exists public.control_plane_evidence (
 );
 create index if not exists control_plane_evidence_run_id_idx on public.control_plane_evidence (run_id, id);
 create index if not exists control_plane_evidence_run_attempt_id_idx on public.control_plane_evidence (run_id, attempt, id);
+create index if not exists control_plane_evidence_run_attempt_criterion_id_idx on public.control_plane_evidence (run_id, attempt, criterion_id, id);
 
 create or replace function public.create_control_plane_run(
  p_run_id text,p_objective text,p_status text,p_acceptance_criteria jsonb,
