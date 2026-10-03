@@ -20,10 +20,14 @@ When the dedicated Supabase project is provisioned:
 
 - `anon`: no table or RPC access
 - `authenticated`: no table or RPC access
-- `service_role`: run-table `SELECT`/`INSERT`, evidence-table `SELECT`, and execute permission on the governed run-update, evidence-append, and approval RPCs
-- direct `UPDATE` on `control_plane_runs` is intentionally denied; lifecycle updates must use `update_control_plane_run`
+- `service_role`: run-table `SELECT`, evidence-table `SELECT`, and execute permission on the governed run-create, run-update, evidence-append, and approval RPCs
+- direct `INSERT` and `UPDATE` on `control_plane_runs` are intentionally denied; run creation must use `create_control_plane_run`, lifecycle updates must use `update_control_plane_run`, and approval must use `approve_control_plane_run`
 - direct `INSERT` on `control_plane_evidence` is intentionally denied; evidence writes must use `append_control_plane_evidence`
 - no client RLS policies are created
+
+## Run creation
+
+The application calls `create_control_plane_run` to create a run. The function permits only the governed initial state: `planned`, attempt `0`, and revision `0`.
 
 ## Evidence append
 

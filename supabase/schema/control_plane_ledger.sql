@@ -24,6 +24,18 @@ create table if not exists public.control_plane_evidence (
 create index if not exists control_plane_evidence_run_id_idx on public.control_plane_evidence (run_id, id);
 create index if not exists control_plane_evidence_run_attempt_id_idx on public.control_plane_evidence (run_id, attempt, id);
 
+create or replace function public.create_control_plane_run(
+ p_run_id text,p_objective text,p_status text,p_acceptance_criteria jsonb,
+ p_requested_capabilities jsonb,p_attempt integer,p_revision bigint,p_created_at timestamptz,p_updated_at timestamptz
+) returns void language plpgsql security definer set search_path = '' as $$
+begin
+ if p_status <> 'planned' then raise exception 'Run must be created in planned state: %',p_status using errcode='23514'; end if;
+ if p_attempt <> 0 then raise exception 'Run must be created at attempt 0' using errcode='23514'; end if;
+ if p_revision <> 0 then raise exception 'Run must be created at revision 0' using errcode='23514'; end if;
+ insert into public.control_plane_runs(id,objective,status,acceptance_criteria,requested_capabilities,attempt,revision,created_at,updated_at)
+ values(p_run_id,p_objective,p_status,p_acceptance_criteria,p_requested_capabilities,p_attempt,p_revision,p_created_at,p_updated_at);
+end; $$;
+
 create or replace function public.update_control_plane_run(
  p_run_id text,p_status text,p_attempt integer,p_revision bigint,p_objective text,
  p_acceptance_criteria jsonb,p_requested_capabilities jsonb,p_updated_at timestamptz
@@ -81,6 +93,7 @@ begin
  return current_run;
 end; $$;
 
+alter function public.create_control_plane_run(text,text,text,jsonb,jsonb,integer,bigint,timestamptz,timestamptz) owner to postgres;
 alter function public.update_control_plane_run(text,text,integer,bigint,text,jsonb,jsonb,timestamptz) owner to postgres;
 alter function public.append_control_plane_evidence(text,integer,text,text,text,text) owner to postgres;
 alter function public.approve_control_plane_run(text,timestamptz) owner to postgres;
@@ -89,14 +102,17 @@ alter table public.control_plane_evidence enable row level security;
 revoke all on table public.control_plane_runs from anon,authenticated,service_role;
 revoke all on table public.control_plane_evidence from anon,authenticated,service_role;
 revoke all on sequence public.control_plane_evidence_id_seq from anon,authenticated,service_role;
+revoke all on function public.create_control_plane_run(text,text,text,jsonb,jsonb,integer,bigint,timestamptz,timestamptz) from public,anon,authenticated,service_role;
 revoke all on function public.update_control_plane_run(text,text,integer,bigint,text,jsonb,jsonb,timestamptz) from public,anon,authenticated,service_role;
 revoke all on function public.append_control_plane_evidence(text,integer,text,text,text,text) from public,anon,authenticated,service_role;
 revoke all on function public.approve_control_plane_run(text,timestamptz) from public,anon,authenticated,service_role;
-grant select,insert on table public.control_plane_runs to service_role;
+grant select on table public.control_plane_runs to service_role;
 grant select on table public.control_plane_evidence to service_role;
+grant execute on function public.create_control_plane_run(text,text,text,jsonb,jsonb,integer,bigint,timestamptz,timestamptz) to service_role;
 grant execute on function public.update_control_plane_run(text,text,integer,bigint,text,jsonb,jsonb,timestamptz) to service_role;
 grant execute on function public.append_control_plane_evidence(text,integer,text,text,text,text) to service_role;
 grant execute on function public.approve_control_plane_run(text,timestamptz) to service_role;
+comment on function public.create_control_plane_run(text,text,text,jsonb,jsonb,integer,bigint,timestamptz,timestamptz) is 'Atomically creates a run only in the governed initial state.';
 comment on function public.update_control_plane_run(text,text,integer,bigint,text,jsonb,jsonb,timestamptz) is 'Atomically enforces lifecycle, attempt, and optimistic revision invariants.';
 comment on function public.append_control_plane_evidence(text,integer,text,text,text,text) is 'Atomically validates governed state and attempt, appends evidence, and invalidates stale snapshots.';
 comment on function public.approve_control_plane_run(text,timestamptz) is 'Atomically evaluates current-attempt evidence and enters approved.';

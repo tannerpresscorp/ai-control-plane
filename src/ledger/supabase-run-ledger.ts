@@ -14,7 +14,6 @@ type QueryBuilder = {
   range(from: number, to: number): Awaitable<SupabaseResponse<Row[]>>;
 };
 type SupabaseTable = {
-  insert(value: unknown): Awaitable<SupabaseResponse<unknown>>;
   select(columns?: string): QueryBuilder;
 };
 export interface SupabaseClientPort {
@@ -64,7 +63,18 @@ export class SupabaseRunLedger implements RunLedger {
 
   async create(run: RunRecord): Promise<void> {
     if (run.status === 'approved') throw new Error('Approved runs must be created through ledger approval');
-    const { error } = await this.client.from(RUNS_TABLE).insert(runToRow(run));
+    runToRow(run);
+    const { error } = await this.client.rpc('create_control_plane_run', {
+      p_run_id: run.id,
+      p_objective: run.objective,
+      p_status: run.status,
+      p_acceptance_criteria: [...run.acceptanceCriteria],
+      p_requested_capabilities: [...run.requestedCapabilities],
+      p_attempt: run.attempt,
+      p_revision: run.revision,
+      p_created_at: run.createdAt,
+      p_updated_at: run.updatedAt
+    });
     assertNoError('create run', error);
   }
 
