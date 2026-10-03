@@ -8,4 +8,6 @@ test('compiled package entry point exposes the public API', () => {
   assert.equal(typeof api.InMemoryRunLedger, 'function');
   assert.equal(typeof api.SupabaseRunLedger, 'function');
   assert.equal(typeof api.CapabilityRegistry, 'function');
+  assert.equal(typeof api.OpenAIAgentsRuntime, 'function');
+  assert.equal(typeof api.GovernedAgentCycle, 'function');
 });
