@@ -18,13 +18,20 @@ export interface EntitlementPolicy {
   readonly capabilities: readonly CapabilityEntitlement[];
 }
 
+export interface TrustedRunReference {
+  readonly id: string;
+  readonly tenantId?: string;
+  readonly source: string;
+  readonly observedAt: string;
+}
+
 export interface UsageEvent {
   readonly id: string;
   readonly tenantId: string;
   readonly capability: string;
   readonly quantity: number;
   readonly source: string;
-  readonly runId?: string;
+  readonly runId: string;
   readonly occurredAt: string;
 }
 
@@ -55,6 +62,7 @@ export interface BillingEvent {
   readonly billableQuantity: number;
   readonly unitPriceCents: number;
   readonly amountCents: number;
+  readonly entitlementEffectiveAt: string;
   readonly periodStart: string;
   readonly periodEnd: string;
   readonly generatedAt: string;
