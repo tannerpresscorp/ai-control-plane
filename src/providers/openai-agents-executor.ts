@@ -3,9 +3,8 @@ import type {
   StructuredAgentExecutor
 } from '../agents/openai-agents-runtime.js';
 
-// A normalized provider boundary, not a contract for a live @openai/agents SDK.
-// A future server-side slice must bind the pinned SDK behind this boundary and
-// prove the translation below against the installed `Agent`/`Runner` types.
+// A normalized provider boundary. `OpenAIAgentsSdkBoundary` binds it to the
+// pinned @openai/agents SDK; this executor stays SDK-independent.
 export interface OpenAIAgent {
   readonly name: string;
   readonly instructions: string;

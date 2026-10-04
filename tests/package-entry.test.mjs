@@ -14,5 +14,6 @@ test('compiled package entry point exposes the public API', () => {
   assert.equal(typeof api.GovernedIntelligence, 'function');
   assert.equal(typeof api.SixtyfourIntelligenceAdapter, 'function');
   assert.equal(typeof api.OpenAIAgentsExecutor, 'function');
+  assert.equal(typeof api.OpenAIAgentsSdkBoundary, 'function');
   assert.equal(typeof api.mapAccountQualification, 'function');
 });

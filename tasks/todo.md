@@ -19,10 +19,12 @@
 - [x] Implement governed Architect/Builder/Verifier runtime and structured executor port.
   - Acceptance: structured outputs are locally validated; agents cannot approve runs; run revision and evidence are refreshed after advisory verification.
   - Verify: `tests/openai-agents-runtime.test.mjs`, `tests/governed-agent-cycle.test.mjs`
-- [ ] Bind `StructuredAgentExecutor` to a pinned `@openai/agents` provider adapter with an installed-SDK contract test.
+- [x] Bind `StructuredAgentExecutor` to a pinned `@openai/agents` provider adapter with an installed-SDK contract test.
   - [x] Add `OpenAIAgentsExecutor` + `OpenAIAgentsBoundary` translating `definition -> agent -> run -> finalOutput` (no SDK dependency/network).
     - Verify: `tests/openai-agents-executor.test.mjs`
-  - [ ] Bind `OpenAIAgentsBoundary` to the pinned `@openai/agents` SDK with an installed-SDK contract test.
+  - [x] Bind `OpenAIAgentsBoundary` to the pinned `@openai/agents` SDK with an installed-SDK contract test.
+    - Verify: `tests/openai-agents-sdk-boundary.test.mjs`
+- [ ] Configure live credentialed OpenAI execution (server-side API key, tracing policy) for deployment.
 - [ ] Add GitHub/Tunnel capability adapter.
 - [ ] Add CircleCI evidence ingestion adapter.
 - [ ] Add human approval policy for destructive/production actions.
