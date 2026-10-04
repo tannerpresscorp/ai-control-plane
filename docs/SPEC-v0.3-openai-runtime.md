@@ -22,7 +22,7 @@ interface StructuredAgentExecutor {
 }
 ```
 
-A later provider adapter will own the real `@openai/agents` `Agent` and `Runner` objects internally. This keeps the domain layer independent from SDK class shape while allowing the provider adapter to translate:
+The provider adapter (`OpenAIAgentsSdkBoundary`) owns the real `@openai/agents` `Agent` and `Runner` objects internally. This keeps the domain layer independent from SDK class shape while allowing the provider adapter to translate:
 
 ```text
 StructuredAgentDefinition -> OpenAI Agent -> Runner.run(agent, input) -> finalOutput
@@ -73,9 +73,34 @@ calls, or new dependencies in this slice. The executor only forwards the
 boundary's `finalOutput`; the raw JSON Schema output is still locally validated
 by the runtime before becoming a domain type.
 
-## Deferred integration
+## Installed SDK boundary
 
-Pinning and importing `@openai/agents` is a separate provider-adapter slice. That
-slice must bind the real SDK behind `OpenAIAgentsBoundary` and include a
-compile-time/runtime contract test against the installed SDK before it can be used
-in production.
+`OpenAIAgentsSdkBoundary` (`src/providers/openai-agents-sdk-boundary.ts`) binds
+`OpenAIAgentsBoundary` to the exactly pinned `@openai/agents` package
+(`0.18.0`). It is a server-side module:
+
+- `createAgent` builds an SDK `Agent` with `name`, `instructions`, an optional
+  `model` (the SDK default applies when omitted), and a defensive copy of the
+  strict JSON Schema `outputType`. No tools or handoffs are attached.
+- `run` only accepts agent handles it created, calls an injected SDK `Runner`
+  (default `new Runner()`), and returns the normalized `{ finalOutput }` shape.
+  A run without a final output is rejected. SDK `Agent`/`RunResult` objects are
+  not exposed through application contracts; the agent handle is `unknown`.
+- `finalOutput` remains advisory raw output. `OpenAIAgentsRuntime` still
+  validates it locally, and the governed cycle still approves only through
+  `RunLedger.approve` over ledger evidence.
+
+`tests/openai-agents-sdk-boundary.test.mjs` is the installed-SDK contract test.
+It drives the real SDK `Agent` and `Runner` with a fake SDK `ModelProvider`/
+`Model` and tracing disabled, so it needs no API key or network access. It
+proves the agent fields and output schema reach the model request, that
+`finalOutput` maps into the normalized shape, and that SDK output violating the
+domain contract is still rejected by local validation.
+
+## Deployment concern
+
+Live credentialed execution is a separate deployment concern. Production
+callers must construct the boundary on the server, supply `OPENAI_API_KEY` (or
+a configured SDK `Runner`/model provider) from server-side configuration, and
+decide on SDK tracing settings. API keys must never be committed or sent to
+browser code.
