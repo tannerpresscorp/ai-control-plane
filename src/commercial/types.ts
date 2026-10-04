@@ -43,6 +43,7 @@ export interface CostEvent {
   readonly currency: string;
   readonly runId: string;
   readonly usageEventId: string;
+  readonly sourceReference?: string;
   readonly occurredAt: string;
 }
 

@@ -161,6 +161,7 @@ export class InMemoryCommercialLedger {
     if (!/^[A-Z]{3}$/.test(event.currency)) throw new Error('Cost currency must be ISO-like uppercase code');
     assertNonBlank(event.runId, 'Cost runId');
     assertNonBlank(event.usageEventId, 'Cost usageEventId');
+    if (event.sourceReference !== undefined) assertNonBlank(event.sourceReference, 'Cost source reference');
     parseTimestamp(event.occurredAt, 'Cost occurredAt');
     if (this.#costs.has(event.id)) throw new Error(`Cost event already exists: ${event.id}`);
 
