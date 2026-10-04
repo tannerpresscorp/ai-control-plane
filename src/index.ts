@@ -12,3 +12,7 @@ export * from './agents/openai-agents-runtime.js';
 export * from './agents/governed-agent-cycle.js';
 export * from './commercial/types.js';
 export * from './commercial/in-memory-commercial-ledger.js';
+export * from './intelligence/contracts.js';
+export * from './intelligence/account-qualification.js';
+export * from './intelligence/governed-intelligence.js';
+export * from './providers/sixtyfour-intelligence.js';
