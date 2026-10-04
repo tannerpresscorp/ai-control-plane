@@ -13,6 +13,7 @@ import type {
 export type OpenAIAgentsSdkRunner = Pick<Runner, 'run'>;
 
 type SdkAgent = Agent<unknown, JsonSchemaDefinition>;
+type SdkAgentHandle = object;
 type SdkSchemaProperties = JsonSchemaDefinition['schema']['properties'];
 
 function toProperties(properties: OpenAIAgent['outputType']['schema']['properties']): SdkSchemaProperties {
@@ -41,7 +42,7 @@ function toOutputType(outputType: OpenAIAgent['outputType']): JsonSchemaDefiniti
 }
 
 export class OpenAIAgentsSdkBoundary implements OpenAIAgentsBoundary {
-  readonly #created = new WeakSet<SdkAgent>();
+  readonly #created = new WeakMap<SdkAgentHandle, SdkAgent>();
 
   constructor(private readonly runner: OpenAIAgentsSdkRunner = new Runner()) {}
 
@@ -56,15 +57,20 @@ export class OpenAIAgentsSdkBoundary implements OpenAIAgentsBoundary {
             outputType,
             model: agent.model
           });
-    this.#created.add(sdkAgent);
-    return sdkAgent;
+    const handle: SdkAgentHandle = {};
+    this.#created.set(handle, sdkAgent);
+    return handle;
   }
 
   async run(agent: unknown, input: string): Promise<OpenAIRunResult> {
-    if (!(agent instanceof Agent) || !this.#created.has(agent)) {
+    if (agent === null || typeof agent !== 'object') {
       throw new Error('OpenAI SDK boundary can only run agents it created');
     }
-    const result = await this.runner.run(agent, input);
+    const sdkAgent = this.#created.get(agent);
+    if (sdkAgent === undefined) {
+      throw new Error('OpenAI SDK boundary can only run agents it created');
+    }
+    const result = await this.runner.run(sdkAgent, input);
     if (result.finalOutput === undefined) {
       throw new Error('OpenAI SDK run produced no final output');
     }
