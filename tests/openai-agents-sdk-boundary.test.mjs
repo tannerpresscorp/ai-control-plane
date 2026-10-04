@@ -62,19 +62,49 @@ const architectDefinition = {
   model: 'gpt-test'
 };
 
-test('constructs a real SDK Agent with name, instructions, model, and output schema', () => {
-  const boundary = new OpenAIAgentsSdkBoundary(sdkRunner(fakeModelProvider(() => '{}').provider));
+test('creates an opaque handle while passing name, instructions, model, and output schema to the SDK', async () => {
+  const output = {
+    objective: 'Ship governed runtime',
+    acceptanceCriteria: ['tests-pass'],
+    requestedCapabilities: ['repo.read'],
+    rationale: 'Keep work bounded'
+  };
+  const { provider, requestedModels, requests } = fakeModelProvider(() => JSON.stringify(output));
+  const boundary = new OpenAIAgentsSdkBoundary(sdkRunner(provider));
 
   const agent = boundary.createAgent(architectDefinition);
+  const result = await boundary.run(agent, 'Build it');
 
-  assert.ok(agent instanceof Agent);
-  assert.equal(agent.name, 'Architect');
-  assert.equal(agent.instructions, 'Plan bounded work.');
-  assert.equal(agent.model, 'gpt-test');
-  assert.deepEqual(agent.outputType, ARCHITECT_OUTPUT_SCHEMA);
-  assert.notEqual(agent.outputType, ARCHITECT_OUTPUT_SCHEMA);
-  assert.deepEqual(agent.tools, []);
-  assert.deepEqual(agent.handoffs, []);
+  assert.equal(agent instanceof Agent, false);
+  assert.deepEqual(result, { finalOutput: output });
+  assert.deepEqual(requestedModels, ['gpt-test']);
+  assert.equal(requests[0].systemInstructions, 'Plan bounded work.');
+  assert.equal(requests[0].outputType.type, 'json_schema');
+  assert.equal(requests[0].outputType.name, 'architect_plan');
+  assert.equal(requests[0].outputType.strict, true);
+  assert.deepEqual(requests[0].outputType.schema, ARCHITECT_OUTPUT_SCHEMA.schema);
+  assert.notEqual(requests[0].outputType.schema, ARCHITECT_OUTPUT_SCHEMA.schema);
+  assert.deepEqual(requests[0].tools, []);
+  assert.deepEqual(requests[0].handoffs, []);
+});
+
+test('opaque handles cannot be mutated to add SDK tools or handoffs', async () => {
+  const output = {
+    objective: 'Ship governed runtime',
+    acceptanceCriteria: ['tests-pass'],
+    requestedCapabilities: ['repo.read'],
+    rationale: 'Keep work bounded'
+  };
+  const { provider, requests } = fakeModelProvider(() => JSON.stringify(output));
+  const boundary = new OpenAIAgentsSdkBoundary(sdkRunner(provider));
+  const agent = boundary.createAgent(architectDefinition);
+
+  agent.tools = [{ name: 'unsafe-tool' }];
+  agent.handoffs = [{ name: 'unsafe-handoff' }];
+  await boundary.run(agent, 'Build it');
+
+  assert.deepEqual(requests[0].tools, []);
+  assert.deepEqual(requests[0].handoffs, []);
 });
 
 test('leaves the SDK default model in place when no model is specified', async () => {
@@ -85,7 +115,6 @@ test('leaves the SDK default model in place when no model is specified', async (
   const agent = boundary.createAgent(withoutModel);
   await boundary.run(agent, 'in');
 
-  assert.equal(agent.model, '');
   assert.equal(requestedModels.includes(model), false);
 });
 
@@ -177,11 +206,14 @@ test('accepts an injected runner and rejects runs without a final output', async
 
   await assert.rejects(() => boundary.run(agent, 'in'), /no final output/);
   assert.equal(calls.length, 1);
-  assert.equal(calls[0].agent, agent);
+  assert.ok(calls[0].agent instanceof Agent);
+  assert.notEqual(calls[0].agent, agent);
   assert.equal(calls[0].input, 'in');
 });
 
 test('constructs with the default SDK Runner without credentials or network', () => {
   const boundary = new OpenAIAgentsSdkBoundary();
-  assert.ok(boundary.createAgent(architectDefinition) instanceof Agent);
+  const agent = boundary.createAgent(architectDefinition);
+
+  assert.equal(agent instanceof Agent, false);
 });
