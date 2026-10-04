@@ -58,6 +58,24 @@ Raw JSON Schema output remains locally validated before becoming a domain type.
 - https://openai.github.io/openai-agents-js/guides/results/
 - https://openai.github.io/openai-agents-js/guides/schemas/
 
+## Provider boundary
+
+`OpenAIAgentsExecutor` implements `StructuredAgentExecutor` by delegating to an
+injected `OpenAIAgentsBoundary` that models the SDK translation:
+
+```text
+StructuredAgentDefinition -> OpenAIAgentsBoundary.createAgent -> run(agent, input) -> finalOutput
+```
+
+This is a normalized application boundary, **not** a live `@openai/agents`
+integration or a claim of SDK compatibility. There are no credentials, network
+calls, or new dependencies in this slice. The executor only forwards the
+boundary's `finalOutput`; the raw JSON Schema output is still locally validated
+by the runtime before becoming a domain type.
+
 ## Deferred integration
 
-Pinning and importing `@openai/agents` is a separate provider-adapter slice. That slice must include a compile-time/runtime contract test against the installed SDK before it can be used in production.
+Pinning and importing `@openai/agents` is a separate provider-adapter slice. That
+slice must bind the real SDK behind `OpenAIAgentsBoundary` and include a
+compile-time/runtime contract test against the installed SDK before it can be used
+in production.
