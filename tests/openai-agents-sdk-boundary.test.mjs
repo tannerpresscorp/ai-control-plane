@@ -1,4 +1,4 @@
-import test from 'node:test';
+import test, { after } from 'node:test';
 import assert from 'node:assert/strict';
 import { Agent, Runner, Usage } from '@openai/agents';
 import { OpenAIAgentsSdkBoundary } from '../dist/providers/openai-agents-sdk-boundary.js';
@@ -9,7 +9,13 @@ import { ARCHITECT_OUTPUT_SCHEMA } from '../dist/agents/schemas.js';
 // Contract tests against the installed, pinned @openai/agents SDK. The real SDK
 // `Agent` and `Runner` are exercised; only the SDK's own `ModelProvider`/`Model`
 // port is replaced, so no API key or network access is required.
+const originalApiKey = process.env.OPENAI_API_KEY;
 delete process.env.OPENAI_API_KEY;
+after(() => {
+  if (originalApiKey !== undefined) {
+    process.env.OPENAI_API_KEY = originalApiKey;
+  }
+});
 
 function fakeModelProvider(respond) {
   const requestedModels = [];
