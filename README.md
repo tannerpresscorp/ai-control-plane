@@ -52,3 +52,33 @@ cannot be delivered.
 ```sh
 python -m unittest discover -s tests -v
 ```
+
+## Front Desk Voice Booking Demo
+
+`apps/front-desk` is a runnable web app that demonstrates voice appointment
+booking for a sample business with an in-memory demo calendar. The browser uses
+WebRTC for the live voice session, while the Node server keeps OpenAI
+credentials server-side, creates ephemeral realtime sessions, checks
+availability, verifies details through the Responses API, and saves confirmed
+bookings.
+
+```sh
+export OPENAI_API_KEY=sk-...
+npm run front-desk
+```
+
+Then open `http://localhost:4173`. The app shows available times and confirmed
+bookings, asks the browser for microphone permission when the voice session
+starts, lets the caller interrupt or revise preferences, and closes the local
+voice session when the caller or user ends the booking.
+
+The seeded calendar and booking endpoints remain usable for local demos if the
+Responses API is unavailable; live voice requires a valid server-side OpenAI API
+key because the server must mint the ephemeral realtime session.
+
+Optional environment variables:
+
+- `FRONT_DESK_PORT`: local server port, default `4173`.
+- `OPENAI_REALTIME_MODEL`: realtime voice model, default `gpt-live`.
+- `OPENAI_RESPONSES_MODEL`: Responses API model used for booking summaries,
+  default `gpt-4.1-mini`.

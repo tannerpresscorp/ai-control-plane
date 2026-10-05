@@ -1,0 +1,61 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Front Desk</title>
+    <link rel="stylesheet" href="/styles.css">
+  </head>
+  <body>
+    <main class="app-shell">
+      <section class="voice-panel">
+        <div class="brand-row">
+          <div>
+            <p class="eyebrow">Voice booking demo</p>
+            <h1>Front Desk</h1>
+          </div>
+          <span id="session-status" class="status-pill">Idle</span>
+        </div>
+
+        <div class="business-card">
+          <h2 id="business-name">Harbor & Pine Wellness</h2>
+          <p id="business-details">Loading demo calendar...</p>
+        </div>
+
+        <div class="controls">
+          <button id="start-call" class="primary-button" type="button">
+            <span aria-hidden="true">REC</span>
+            Start voice booking
+          </button>
+          <button id="stop-call" class="ghost-button" type="button" disabled>
+            End
+          </button>
+        </div>
+
+        <p id="permission-note" class="note">Your browser will ask for microphone access. The API key stays on the server.</p>
+
+        <div class="conversation">
+          <h2>Conversation</h2>
+          <ol id="transcript" class="transcript"></ol>
+        </div>
+      </section>
+
+      <section class="schedule-panel">
+        <div class="panel-header">
+          <h2>Available Times</h2>
+          <select id="service-filter" aria-label="Service"></select>
+        </div>
+        <div id="available-times" class="slot-grid"></div>
+
+        <div class="panel-header bookings-header">
+          <h2>Confirmed Bookings</h2>
+          <span id="booking-count" class="count-pill">0</span>
+        </div>
+        <div id="bookings" class="bookings"></div>
+      </section>
+    </main>
+
+    <audio id="remote-audio" autoplay></audio>
+    <script type="module" src="/app.js"></script>
+  </body>
+</html>
