@@ -2,19 +2,28 @@
 
 The control-plane ledger is intentionally server-only.
 
+## Live project
+
+Dedicated project provisioned on 2026-10-06:
+
+- Project name: `ai-control-plane`
+- Project ref: `qfjbjpsdhlrgtcuejehh`
+- Region: `us-east-1`
+- Migration: `20261006175830_control_plane_ledger`
+
+The source-controlled migration lives at `migrations/20261006175830_control_plane_ledger.sql` and mirrors the reviewed schema source in `schema/control_plane_ledger.sql`.
+
 ## Schema source
 
-`schema/control_plane_ledger.sql` is the reviewed SQL source for the ledger schema. It is **not** a generated migration file.
+`schema/control_plane_ledger.sql` remains the reviewed SQL source for the ledger schema. `migrations/20261006175830_control_plane_ledger.sql` is the live migration artifact applied to the dedicated Supabase project.
 
-When the dedicated Supabase project is provisioned:
+When provisioning another Supabase environment:
 
-1. Authenticate the Supabase CLI.
-2. Link the repository to the new project.
-3. Create the migration with `supabase migration new control_plane_ledger`.
-4. Copy the reviewed schema SQL into that generated migration.
-5. Apply it in a non-production environment first.
-6. Run database tests and Supabase security/performance advisors.
-7. Commit the generated migration and migration metadata.
+1. Authenticate the Supabase CLI or MCP connection.
+2. Link to the target project or create a development branch.
+3. Apply `migrations/20261006175830_control_plane_ledger.sql` as a migration.
+4. Run database smoke tests and Supabase security/performance advisors.
+5. Confirm RLS, grants, and RPC ownership match this document before wiring runtime credentials.
 
 ## Access model
 
@@ -41,4 +50,15 @@ The application calls `approve_control_plane_run` to enter `approved`. This keep
 
 ## SDK boundary
 
-The repository currently exposes a narrow `SupabaseClientPort`; it does not claim direct type compatibility with `@supabase/supabase-js`. Direct binding requires a pinned package version, committed lockfile, and an actual SDK contract test.
+The repository exposes a narrow `SupabaseClientPort` plus a pinned `@supabase/supabase-js` adapter. Runtime composition should keep privileged Supabase credentials server-side and pass the SDK client through `createSupabaseRunLedgerClient()` or `adaptSupabaseRunLedgerClient()`.
+
+## Live verification notes
+
+After applying the live migration, verification confirmed:
+
+- both ledger tables have RLS enabled;
+- all four governed RPC functions are `SECURITY DEFINER` with `search_path = ''`;
+- only `service_role` has ledger table `SELECT` and RPC `EXECUTE` grants;
+- live smoke test passed create/build/evidence/verify/approve and cleaned up all smoke rows;
+- security advisor reported `rls_enabled_no_policy` as informational for both tables, which is expected because this server-only ledger intentionally creates no client policies;
+- performance advisor reported the new evidence indexes as unused, which is expected before production traffic.
