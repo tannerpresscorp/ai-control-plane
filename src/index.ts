@@ -18,3 +18,4 @@ export * from './intelligence/governed-intelligence.js';
 export * from './providers/sixtyfour-intelligence.js';
 export * from './providers/openai-agents-executor.js';
 export * from './providers/openai-agents-sdk-boundary.js';
+export * from './providers/supabase-js-client.js';

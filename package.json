@@ -23,6 +23,7 @@
     "typescript": "5.8.3"
   },
   "dependencies": {
-    "@openai/agents": "0.18.0"
+    "@openai/agents": "0.18.0",
+    "@supabase/supabase-js": "2.117.2"
   }
 }

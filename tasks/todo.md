@@ -14,7 +14,8 @@
 - [x] Implement Supabase `RunLedger` persistence boundary and server-only schema source.
   - Acceptance: RLS enabled; evidence append is RPC-only/atomic; pagination handles server caps; evidence invalidates stale run revisions.
   - Verify: `tests/supabase-run-ledger.test.mjs`
-- [ ] Bind `SupabaseClientPort` to a pinned `@supabase/supabase-js` dependency with an actual SDK contract test.
+- [x] Bind `SupabaseClientPort` to a pinned `@supabase/supabase-js` dependency with an actual SDK contract test.
+  - Verify: `tests/supabase-js-client.test.mjs`
 - [ ] Provision a dedicated Supabase project and generate/apply the real migration.
 - [x] Implement governed Architect/Builder/Verifier runtime and structured executor port.
   - Acceptance: structured outputs are locally validated; agents cannot approve runs; run revision and evidence are refreshed after advisory verification.
