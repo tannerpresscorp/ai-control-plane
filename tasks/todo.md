@@ -16,7 +16,10 @@
   - Verify: `tests/supabase-run-ledger.test.mjs`
 - [x] Bind `SupabaseClientPort` to a pinned `@supabase/supabase-js` dependency with an actual SDK contract test.
   - Verify: `tests/supabase-js-client.test.mjs`
-- [ ] Provision a dedicated Supabase project and generate/apply the real migration.
+- [x] Provision a dedicated Supabase project and generate/apply the real migration.
+  - Project: `ai-control-plane` / `qfjbjpsdhlrgtcuejehh` in `us-east-1`
+  - Migration: `20261006175830_control_plane_ledger`
+  - Verify: live smoke test passed create/build/evidence/verify/approve with cleanup, plus Supabase advisors reviewed.
 - [x] Implement governed Architect/Builder/Verifier runtime and structured executor port.
   - Acceptance: structured outputs are locally validated; agents cannot approve runs; run revision and evidence are refreshed after advisory verification.
   - Verify: `tests/openai-agents-runtime.test.mjs`, `tests/governed-agent-cycle.test.mjs`

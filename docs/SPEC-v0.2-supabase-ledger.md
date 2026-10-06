@@ -18,7 +18,7 @@ The ledger is server-only. Browser/client roles must not be able to read or muta
 
 `SupabaseRunLedger` accepts a narrow `SupabaseClientPort`. The port is intentionally not claimed to be the exported `@supabase/supabase-js` client type.
 
-A later composition adapter must bind a pinned `@supabase/supabase-js` version to this port and include an actual SDK type/runtime contract test before direct compatibility is claimed.
+The composition adapter binds pinned `@supabase/supabase-js` to this port through installed-SDK contract tests in `tests/supabase-js-client.test.mjs`.
 
 ## Atomic evidence append
 
@@ -42,9 +42,23 @@ Evidence reads advance by the number of rows actually returned and stop only on 
 
 Unit tests cover optimistic updates, positive attempt enforcement, governed run states, capped pagination, revision invalidation, and the RPC-only SQL privilege boundary.
 
-## Migration policy
+Live project verification also confirmed RLS, function `SECURITY DEFINER` configuration, table/RPC grants, migration history, and the create/build/evidence/verify/approve path.
 
-The reviewed SQL lives under `supabase/schema/` until a dedicated project is provisioned. The real migration must be generated with the Supabase CLI, applied first in a non-production project, and followed by Supabase security/performance advisors.
+## Live deployment status
+
+The dedicated Supabase project is provisioned and migrated:
+
+- Project name: `ai-control-plane`
+- Project ref: `qfjbjpsdhlrgtcuejehh`
+- Region: `us-east-1`
+- Migration: `20261006175830_control_plane_ledger`
+- Source-controlled migration: `supabase/migrations/20261006175830_control_plane_ledger.sql`
+
+Advisor notes after migration:
+
+- `rls_enabled_no_policy` appears as informational for the two ledger tables. This is expected because the ledger is server-only and intentionally has no client policies.
+- New evidence indexes appear as unused until production traffic exercises them.
+- Auth connection strategy advisory is project-level and not caused by this ledger schema.
 
 ## Current Supabase references
 
