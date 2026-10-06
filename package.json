@@ -1,7 +1,7 @@
 {
   "name": "@tannerpress/ai-control-plane",
   "version": "0.1.0",
-  "private": true,
+  "private": false,
   "type": "module",
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
@@ -9,7 +9,12 @@
     ".": {
       "types": "./dist/index.d.ts",
       "import": "./dist/index.js"
-    }
+    },
+    "./server": {
+      "types": "./dist/server.d.ts",
+      "import": "./dist/server.js"
+    },
+    "./package.json": "./package.json"
   },
   "engines": {
     "node": ">=22"
@@ -17,13 +22,29 @@
   "scripts": {
     "build": "tsc -p tsconfig.json",
     "test": "npm run build && node --test tests/*.test.mjs",
-    "check": "npm test"
+    "check": "npm test",
+    "start": "node dist/server.js",
+    "serve": "node dist/server.js",
+    "pack:dry-run": "npm pack --dry-run",
+    "publish:public": "npm publish --access public",
+    "prepublishOnly": "npm run check && npm run pack:dry-run"
   },
   "devDependencies": {
+    "@types/node": "22.20.5",
     "typescript": "5.8.3"
   },
   "dependencies": {
     "@openai/agents": "0.18.0",
     "@supabase/supabase-js": "2.117.2"
-  }
+  },
+  "bin": {
+    "ai-control-plane": "./dist/bin/ai-control-plane.js"
+  },
+  "files": [
+    "dist",
+    "README.md",
+    "docs",
+    "supabase/migrations",
+    "supabase/README.md"
+  ]
 }

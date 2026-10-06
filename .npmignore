@@ -1,0 +1,13 @@
+src/
+tests/
+tasks/
+.github/
+.circleci/
+node_modules/
+coverage/
+*.db
+*.sqlite
+.env
+.env.*
+*.tgz
+__pycache__/

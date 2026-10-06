@@ -52,3 +52,101 @@ cannot be delivered.
 ```sh
 python -m unittest discover -s tests -v
 ```
+
+## Node package, CLI, and service deployment
+
+This repository now ships three deployable surfaces:
+
+1. **npm package** for library consumption.
+2. **CLI** exposed as `ai-control-plane`.
+3. **HTTP service** exposed by `node dist/server.js`.
+
+### Package release workflow
+
+```sh
+npm ci
+npm run check
+npm run pack:dry-run
+npm publish --access public
+```
+
+The package publishes only the compiled `dist` output, README, docs, and Supabase migration documentation. Source files, tests, local databases, environment files, and CI metadata are excluded with `.npmignore`.
+
+### CLI usage
+
+After installing the package globally or through `npx`, use:
+
+```sh
+ai-control-plane --help
+ai-control-plane --version
+ai-control-plane health
+ai-control-plane serve
+```
+
+The `serve` command starts the same HTTP API service as `npm start`.
+
+### HTTP service
+
+Build and run locally:
+
+```sh
+npm ci
+npm run build
+npm start
+```
+
+Default service settings:
+
+```sh
+HOST=0.0.0.0
+PORT=3000
+```
+
+Health endpoints:
+
+```sh
+GET /health
+GET /ready
+```
+
+Both endpoints return JSON with service status, version, uptime, timestamp, and whether required runtime credentials are present. They do not expose secret values.
+
+Optional server-side environment variables:
+
+```sh
+OPENAI_API_KEY=
+SUPABASE_URL=
+SUPABASE_SERVICE_ROLE_KEY=
+```
+
+Copy `.env.example` when configuring a deployment target. Do not commit real secrets.
+
+### Docker deployment
+
+Build and run the service container:
+
+```sh
+docker build -t ai-control-plane:local .
+docker run --rm -p 3000:3000 --env-file .env ai-control-plane:local
+```
+
+The Docker image uses `node:22-slim`, builds TypeScript in a separate stage, prunes development dependencies, exposes port `3000`, and includes a `/health` health check.
+
+### Render deployment
+
+`render.yaml` defines a Docker-backed web service named `ai-control-plane` with `/health` as the health check path. Configure these secrets in Render before production use:
+
+```sh
+OPENAI_API_KEY
+SUPABASE_URL
+SUPABASE_SERVICE_ROLE_KEY
+```
+
+The service can boot without these credentials for health checks, but live provider-backed workflows require the relevant server-side values.
+
+
+Docker Compose is also available for local service runs:
+
+```sh
+docker compose up --build
+```
