@@ -1,0 +1,4 @@
+{
+  "framework": "node",
+  "buildCommand": "npm run build"
+}

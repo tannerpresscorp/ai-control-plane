@@ -1,7 +1,7 @@
 {
   "name": "@tannerpress/ai-control-plane",
   "version": "0.1.0",
-  "private": true,
+  "private": false,
   "type": "module",
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
@@ -9,7 +9,12 @@
     ".": {
       "types": "./dist/index.d.ts",
       "import": "./dist/index.js"
-    }
+    },
+    "./server": {
+      "types": "./dist/server.d.ts",
+      "import": "./dist/server.js"
+    },
+    "./package.json": "./package.json"
   },
   "engines": {
     "node": ">=22"
@@ -18,13 +23,40 @@
     "build": "tsc -p tsconfig.json",
     "test": "npm run build && node --test tests/*.test.mjs",
     "check": "npm test",
-    "support": "npm run build && node support-app/server.mjs"
+    "start": "node dist/server.js",
+    "serve": "node dist/server.js",
+    "pack:dry-run": "npm pack --dry-run",
+    "publish:public": "npm publish --access public",
+    "prepack": "npm run build",
+    "prepublishOnly": "npm run check"
   },
   "devDependencies": {
+    "@types/node": "22.20.5",
     "typescript": "5.8.3"
   },
   "dependencies": {
     "@openai/agents": "0.18.0",
     "@supabase/supabase-js": "2.117.2"
+  },
+  "bin": {
+    "ai-control-plane": "dist/cli.js"
+  },
+  "files": [
+    "dist",
+    "README.md",
+    "supabase/migrations",
+    "supabase/README.md"
+  ],
+  "publishConfig": {
+    "access": "public",
+    "registry": "https://registry.npmjs.org/"
+  },
+  "description": "Deterministic evidence verification and governed agent runtime with a CLI and HTTP API.",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/imatthewtanner/ai-control-plane.git"
+  },
+  "overrides": {
+    "pkce-challenge": "4.1.0"
   }
 }
