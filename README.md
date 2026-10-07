@@ -1,4 +1,4 @@
-# Tannerpress AI Control Plane
+# AI Control Plane
 
 A small, dependency-free foundation for governed multi-agent engineering
 workflows. It provides persistent workflow state, capability-based task claims,
