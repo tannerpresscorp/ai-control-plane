@@ -187,6 +187,8 @@ Deploy this branch as a preview and check `/health`, `/ready`, and a verificatio
 POST before promoting it. Vercel Deployment Protection may require authenticated
 access even when a deployment reports `READY`.
 
+When Vercel requires verified commits, the release head must have a valid GitHub commit signature and be attributed to a GitHub account recognized by the Vercel team. Keep that requirement enabled and use signed commits; unsigned Git-triggered deployments are canceled.
+
 ### Render deployment
 
 `render.yaml` remains an alternative Docker-backed web service configuration with
