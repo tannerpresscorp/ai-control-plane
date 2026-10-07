@@ -27,7 +27,8 @@
     "serve": "node dist/server.js",
     "pack:dry-run": "npm pack --dry-run",
     "publish:public": "npm publish --access public",
-    "prepublishOnly": "npm run check && npm run pack:dry-run"
+    "prepack": "npm run build",
+    "prepublishOnly": "npm run check"
   },
   "devDependencies": {
     "@types/node": "22.20.5",
@@ -38,13 +39,21 @@
     "@supabase/supabase-js": "2.117.2"
   },
   "bin": {
-    "ai-control-plane": "./dist/bin/ai-control-plane.js"
+    "ai-control-plane": "dist/cli.js"
   },
   "files": [
     "dist",
     "README.md",
-    "docs",
     "supabase/migrations",
     "supabase/README.md"
-  ]
+  ],
+  "publishConfig": {
+    "access": "public",
+    "registry": "https://registry.npmjs.org/"
+  },
+  "description": "Deterministic evidence verification and governed agent runtime with a CLI and HTTP API.",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/imatthewtanner/ai-control-plane.git"
+  }
 }

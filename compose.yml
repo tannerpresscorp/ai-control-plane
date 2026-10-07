@@ -4,13 +4,9 @@ services:
       context: .
       dockerfile: Dockerfile
     image: ai-control-plane:local
-    env_file:
-      - .env
+    environment:
+      AI_CONTROL_PLANE_HOST: 0.0.0.0
+      PORT: 3000
     ports:
       - "${PORT:-3000}:3000"
-    volumes:
-      - ai_control_plane_data:/app/data
     restart: unless-stopped
-
-volumes:
-  ai_control_plane_data:

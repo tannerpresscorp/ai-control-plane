@@ -14,7 +14,7 @@ FROM node:22-slim AS runtime
 
 ENV NODE_ENV=production
 ENV PORT=3000
-ENV HOST=0.0.0.0
+ENV AI_CONTROL_PLANE_HOST=0.0.0.0
 
 WORKDIR /app
 
@@ -23,7 +23,8 @@ COPY --from=build /app/package-lock.json ./package-lock.json
 COPY --from=build /app/node_modules ./node_modules
 COPY --from=build /app/dist ./dist
 COPY README.md ./README.md
-COPY supabase ./supabase
+
+USER node
 
 EXPOSE 3000
 

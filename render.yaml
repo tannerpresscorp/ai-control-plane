@@ -9,7 +9,7 @@ services:
     envVars:
       - key: NODE_ENV
         value: production
-      - key: HOST
+      - key: AI_CONTROL_PLANE_HOST
         value: 0.0.0.0
       - key: PORT
         value: 3000

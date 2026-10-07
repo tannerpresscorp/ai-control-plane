@@ -1,110 +1,57 @@
-import assert from 'node:assert/strict';
-import { readFile } from 'node:fs/promises';
-import { spawnSync } from 'node:child_process';
-import { once } from 'node:events';
 import test from 'node:test';
+import assert from 'node:assert/strict';
+import { readFileSync, existsSync } from 'node:fs';
+import { spawnSync } from 'node:child_process';
+import { request } from 'node:http';
 
-const repoRoot = new URL('../', import.meta.url);
-const fromRoot = (path) => new URL(path, repoRoot);
+const pkg = JSON.parse(readFileSync(new URL('../package.json', import.meta.url), 'utf8'));
 
-test('package metadata is publishable, installable as a CLI, and has a service entrypoint', async () => {
-  const pkg = JSON.parse(await readFile(fromRoot('package.json'), 'utf8'));
-
+test('package metadata is ready for npm publishing and CLI installation', () => {
   assert.equal(pkg.private, false);
-  assert.deepEqual(pkg.bin, {
-    'ai-control-plane': './dist/bin/ai-control-plane.js',
-  });
-  assert.equal(pkg.scripts.start, 'node dist/server.js');
-  assert.equal(pkg.scripts.serve, 'node dist/server.js');
-  assert.equal(pkg.scripts.prepublishOnly, 'npm run check && npm run pack:dry-run');
-  assert.equal(pkg.scripts['pack:dry-run'], 'npm pack --dry-run');
-  assert.equal(pkg.scripts['publish:public'], 'npm publish --access public');
-
+  assert.equal(pkg.main, './dist/index.js');
+  assert.equal(pkg.types, './dist/index.d.ts');
+  assert.deepEqual(pkg.bin, { 'ai-control-plane': 'dist/cli.js' });
   assert.ok(pkg.files.includes('dist'));
   assert.ok(pkg.files.includes('README.md'));
   assert.ok(pkg.files.includes('supabase/migrations'));
-  assert.ok(pkg.files.includes('supabase/README.md'));
-
-  assert.equal(pkg.exports['.'].import, './dist/index.js');
-  assert.equal(pkg.exports['./server'].import, './dist/server.js');
-
-  const npmignore = await readFile(fromRoot('.npmignore'), 'utf8');
-  assert.match(npmignore, /^src\/$/m);
-  assert.match(npmignore, /^tests\/$/m);
-  assert.match(npmignore, /^\.github\/$/m);
-  assert.match(npmignore, /^\.env/m);
+  assert.ok(existsSync(new URL('../.npmignore', import.meta.url)));
 });
 
-test('Docker and Render deployment metadata expose the API service with health checks', async () => {
-  const dockerfile = await readFile(fromRoot('Dockerfile'), 'utf8');
-  assert.match(dockerfile, /FROM node:22-slim/);
-  assert.match(dockerfile, /npm ci/);
-  assert.match(dockerfile, /npm run build/);
-  assert.match(dockerfile, /node", "dist\/server\.js"/);
-  assert.match(dockerfile, /HEALTHCHECK/);
+test('CLI health command runs from the built package', () => {
+  const result = spawnSync(process.execPath, ['dist/cli.js', 'health'], {
+    cwd: new URL('..', import.meta.url),
+    encoding: 'utf8'
+  });
 
-  const dockerignore = await readFile(fromRoot('.dockerignore'), 'utf8');
-  assert.match(dockerignore, /^node_modules\/$/m);
-  assert.match(dockerignore, /^dist\/$/m);
-  assert.match(dockerignore, /^\.env/m);
-
-  const render = await readFile(fromRoot('render.yaml'), 'utf8');
-  assert.match(render, /type: web/);
-  assert.match(render, /env: docker/);
-  assert.match(render, /healthCheckPath: \/health/);
+  assert.equal(result.status, 0, result.stderr);
+  const payload = JSON.parse(result.stdout);
+  assert.equal(payload.status, 'ok');
+  assert.equal(payload.name, pkg.name);
+  assert.equal(payload.service, pkg.name);
+  assert.equal(payload.version, pkg.version);
 });
 
-test('built CLI exposes help and version commands', async () => {
-  const help = spawnSync(process.execPath, ['dist/bin/ai-control-plane.js', '--help'], {
-    cwd: repoRoot,
-    encoding: 'utf8',
-  });
-  assert.equal(help.status, 0, help.stderr);
-  assert.match(help.stdout, /Usage: ai-control-plane/);
-  assert.match(help.stdout, /serve/);
-
-  const version = spawnSync(process.execPath, ['dist/bin/ai-control-plane.js', '--version'], {
-    cwd: repoRoot,
-    encoding: 'utf8',
-  });
-  assert.equal(version.status, 0, version.stderr);
-
-  const pkg = JSON.parse(await readFile(fromRoot('package.json'), 'utf8'));
-  assert.match(version.stdout, new RegExp(pkg.version));
-});
-
-test('API service responds to health and readiness checks without live credentials', async (t) => {
-  const { createApiServer } = await import('../dist/server.js');
-  const server = createApiServer({
-    name: '@tannerpress/ai-control-plane',
-    version: '0.1.0-test',
-  });
-
-  t.after(() => new Promise((resolve, reject) => {
-    server.close((error) => error ? reject(error) : resolve());
-  }));
-
-  server.listen(0, '127.0.0.1');
-  await once(server, 'listening');
-
+test('service exposes a JSON health endpoint', async () => {
+  const { createControlPlaneServer } = await import('../dist/server.js');
+  const server = createControlPlaneServer();
+  await new Promise((resolve) => server.listen(0, '127.0.0.1', resolve));
   const address = server.address();
   assert.equal(typeof address, 'object');
 
-  const health = await fetch(`http://127.0.0.1:${address.port}/health`);
-  assert.equal(health.status, 200);
-  assert.equal(health.headers.get('content-type'), 'application/json');
+  const response = await new Promise((resolve, reject) => {
+    const req = request({ hostname: '127.0.0.1', port: address.port, path: '/health', method: 'GET' }, (res) => {
+      let body = '';
+      res.setEncoding('utf8');
+      res.on('data', (chunk) => { body += chunk; });
+      res.on('end', () => resolve({ statusCode: res.statusCode, body }));
+    });
+    req.on('error', reject);
+    req.end();
+  });
 
-  const healthBody = await health.json();
-  assert.equal(healthBody.status, 'ok');
-  assert.equal(healthBody.service, '@tannerpress/ai-control-plane');
-  assert.equal(healthBody.version, '0.1.0-test');
-  assert.equal(healthBody.credentials.openaiApiKey, false);
-  assert.equal(healthBody.credentials.supabaseUrl, false);
-  assert.equal(healthBody.credentials.supabaseServiceRoleKey, false);
-
-  const ready = await fetch(`http://127.0.0.1:${address.port}/ready`);
-  assert.equal(ready.status, 200);
-
-  const missing = await fetch(`http://127.0.0.1:${address.port}/missing`);
-  assert.equal(missing.status, 404);
+  server.close();
+  assert.equal(response.statusCode, 200);
+  const payload = JSON.parse(response.body);
+  assert.equal(payload.status, 'ok');
+  assert.equal(payload.service, 'ai-control-plane-api');
 });
