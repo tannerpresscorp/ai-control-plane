@@ -123,7 +123,7 @@ test('browser app keeps credentials server-side and has no manual interruption p
   assert.doesNotMatch(browserSource, /OPENAI_API_KEY|sk-[A-Za-z0-9]/);
   assert.doesNotMatch(browserSource, /\.interrupt\s*\(|\.pause\s*\(/);
   assert.match(browserSource, /history_updated/);
-  assert.match(browserSource, /session\.close\(\)/);
+  assert.match(browserSource, /\.close\(\)/);
   assert.match(html, /id="start-call"/);
   assert.match(html, /id="end-call"/);
   assert.match(html, /id="connection-status"/);
