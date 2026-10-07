@@ -192,6 +192,11 @@ commit signature and be attributed to a GitHub account recognized by the Vercel
 team. Keep that requirement enabled and use signed commits; unsigned Git-triggered
 deployments are canceled.
 
+For automated releases, GitHub's createCommitOnBranch API can create a verified
+commit as the authenticated GitHub user. Check that the returned signature is valid
+before relying on a Git-triggered deployment. Local Git commits must also use an
+email associated with the GitHub account connected to your Vercel team.
+
 ### Render deployment
 
 `render.yaml` remains an alternative Docker-backed web service configuration with
