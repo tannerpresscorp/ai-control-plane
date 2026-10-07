@@ -8,7 +8,7 @@ submit results, and a verifier records the outcome.
 
 ## Requirements
 
-Python 3.10 or later. No third-party packages are required.
+Python 3.10 or later. Node.js 22+ is required for the TypeScript package and realtime support app.
 
 ## Quick start
 
@@ -47,8 +47,25 @@ only after every task is complete and verification passes. Each lifecycle
 transition is recorded with its actor and details. Rejected and failed runs
 cannot be delivered.
 
+## Realtime voice support app
+
+The repository includes a minimal browser voice-support surface using the OpenAI Realtime API and the OpenAI Agents SDK. The browser never receives `OPENAI_API_KEY`; the local server exchanges that server-side key for a short-lived Realtime client secret.
+
+```sh
+npm ci
+export OPENAI_API_KEY="your-server-side-key"
+npm run support
+```
+
+Open `http://localhost:3000`, then choose **Start call**. The click initiates the `RealtimeSession` connection so microphone permission and WebRTC setup happen from a user gesture. The session uses `gpt-realtime-2.1` and relies on the SDK for WebRTC audio, server VAD, natural turn taking, and normal barge-in.
+
+Support actions under `/api/support/context` and `/api/support/request` are intentionally labeled **PLACEHOLDER** routes because this repository currently has no production support or ticket backend. Replace them with authenticated application APIs before production use.
+
+The support page imports the pinned browser SDK through an import map and therefore requires network access to `esm.sh` when loading the page. Production deployments should bundle the browser dependencies into the application build instead.
+
 ## Tests
 
 ```sh
+npm test
 python -m unittest discover -s tests -v
 ```
