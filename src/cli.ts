@@ -6,11 +6,12 @@ import { PACKAGE_NAME, PACKAGE_VERSION } from './package-metadata.js';
 import { createHealthPayload, startServer } from './server.js';
 import { MAX_VERIFICATION_INPUT_BYTES, verifyAcceptanceInput } from './verification-input.js';
 
-const HELP = `Usage: ai-control-plane <command>
+const HELP = `AI Control Plane CLI\n\nUsage: ai-control-plane <command>
 
 Commands:
   serve                             Start the HTTP API service.
   health                            Print local runtime health metadata as JSON.
+  package-info                      Print package metadata as JSON.
   verify-acceptance --json <json>   Verify inline acceptance evidence.
   verify-acceptance --file <path>   Verify acceptance evidence from a JSON file.
   --help                            Show this help message.
@@ -122,6 +123,14 @@ export async function runCli(argv: readonly string[] = process.argv.slice(2)): P
       return;
     case 'health':
       console.log(JSON.stringify(createHealthPayload({ serviceName: PACKAGE_NAME }), null, 2));
+      return;
+    case 'package-info':
+      console.log(JSON.stringify({
+        name: PACKAGE_NAME,
+        version: PACKAGE_VERSION,
+        service: 'ai-control-plane',
+        packageType: 'library',
+      }, null, 2));
       return;
     case 'serve':
       try {

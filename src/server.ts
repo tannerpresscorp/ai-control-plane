@@ -80,6 +80,21 @@ export function createHealthPayload(options: ApiServerOptions = {}): ApiHealthPa
   };
 }
 
+export function createPackageInfoPayload(options: ApiServerOptions = {}) {
+  return {
+    name: options.name ?? PACKAGE_NAME,
+    version: options.version ?? PACKAGE_VERSION,
+    service: options.serviceName ?? DEFAULT_SERVICE_NAME,
+    packageType: 'library' as const,
+    endpoints: {
+      health: '/health',
+      ready: '/ready',
+      package: '/api/package',
+      verifyAcceptance: '/v1/verify-acceptance',
+    },
+  };
+}
+
 function writeJson(response: ServerResponse, statusCode: number, body: unknown, headers: Record<string, string> = {}): void {
   const payload = JSON.stringify(body);
   response.writeHead(statusCode, {
@@ -186,6 +201,13 @@ async function handleRequest(request: IncomingMessage, response: ServerResponse,
     return;
   }
 
+  if (path === '/api/package') {
+    if (!methodAllowed(request, response, ['GET', 'HEAD'])) return;
+    request.resume();
+    writeJson(response, 200, createPackageInfoPayload(options));
+    return;
+  }
+
   if (path === '/health' || path === '/ready' || path === '/') {
     if (!methodAllowed(request, response, ['GET', 'HEAD'])) return;
     request.resume();
@@ -197,7 +219,7 @@ async function handleRequest(request: IncomingMessage, response: ServerResponse,
       name: options.name ?? PACKAGE_NAME,
       service: options.serviceName ?? DEFAULT_SERVICE_NAME,
       version: options.version ?? PACKAGE_VERSION,
-      endpoints: { health: '/health', ready: '/ready', verifyAcceptance: '/v1/verify-acceptance' },
+      endpoints: { health: '/health', ready: '/ready', package: '/api/package', verifyAcceptance: '/v1/verify-acceptance' },
     });
     return;
   }
