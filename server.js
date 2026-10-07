@@ -1,3 +1,3 @@
-import { startServer } from './dist/server.js';
+import { createControlPlaneRequestHandler } from './dist/server.js';
 
-startServer({ serviceName: 'ai-control-plane-api' });
+export default createControlPlaneRequestHandler({ serviceName: 'ai-control-plane-api' });

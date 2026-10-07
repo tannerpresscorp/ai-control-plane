@@ -55,5 +55,8 @@
   "repository": {
     "type": "git",
     "url": "git+https://github.com/imatthewtanner/ai-control-plane.git"
+  },
+  "overrides": {
+    "pkce-challenge": "4.1.0"
   }
 }

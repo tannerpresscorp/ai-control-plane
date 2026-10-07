@@ -4,9 +4,12 @@ dist
 .github
 .circleci
 coverage
+*.tgz
 *.db
 *.sqlite
-*.tgz
 .env
 .env.*
 __pycache__
+.vercel
+tests
+tasks

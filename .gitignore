@@ -9,5 +9,3 @@ coverage/
 __pycache__/
 .vercel/
 *.tgz
-.vercel
-.env*
