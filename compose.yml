@@ -1,0 +1,12 @@
+services:
+  ai-control-plane:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: ai-control-plane:local
+    environment:
+      AI_CONTROL_PLANE_HOST: 0.0.0.0
+      PORT: 3000
+    ports:
+      - "${PORT:-3000}:3000"
+    restart: unless-stopped

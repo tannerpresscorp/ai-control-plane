@@ -1,0 +1,15 @@
+node_modules
+dist
+.git
+.github
+.circleci
+coverage
+*.tgz
+*.db
+*.sqlite
+.env
+.env.*
+__pycache__
+.vercel
+tests
+tasks
