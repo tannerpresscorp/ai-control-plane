@@ -17,7 +17,8 @@
   "scripts": {
     "build": "tsc -p tsconfig.json",
     "test": "npm run build && node --test tests/*.test.mjs",
-    "check": "npm test"
+    "check": "npm test",
+    "support": "npm run build && node support-app/server.mjs"
   },
   "devDependencies": {
     "typescript": "5.8.3"
