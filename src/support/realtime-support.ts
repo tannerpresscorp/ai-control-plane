@@ -1,5 +1,4 @@
 import { RealtimeAgent, RealtimeSession, tool } from '@openai/agents/realtime';
-import { z } from 'zod';
 
 export const REALTIME_SUPPORT_MODEL = 'gpt-realtime-2.1';
 
@@ -41,15 +40,31 @@ async function postJson(
   return JSON.stringify(await response.json());
 }
 
+function stringField(input: unknown, field: string): string {
+  if (input === null || typeof input !== 'object') return '';
+  const value = (input as Record<string, unknown>)[field];
+  return typeof value === 'string' ? value.trim() : '';
+}
+
 export function createSupportAgent(fetchImpl: typeof fetch = fetch): RealtimeAgent {
   const lookupSupportContext = tool({
     name: 'lookup_support_context',
     description:
       'Placeholder support lookup for AI Control Plane product questions. Returns clearly labeled non-production support context.',
-    parameters: z.object({
-      question: z.string().min(1).describe('The caller support question to look up.')
-    }),
-    async execute({ question }) {
+    parameters: {
+      type: 'object',
+      properties: {
+        question: {
+          type: 'string',
+          description: 'The caller support question to look up.'
+        }
+      },
+      required: ['question'],
+      additionalProperties: false
+    },
+    async execute(input) {
+      const question = stringField(input, 'question');
+      if (!question) return 'A non-empty support question is required.';
       return postJson('/api/support/context', { question }, fetchImpl);
     }
   });
@@ -58,10 +73,20 @@ export function createSupportAgent(fetchImpl: typeof fetch = fetch): RealtimeAge
     name: 'create_support_request',
     description:
       'Placeholder follow-up request action. Use only when the caller asks for follow-up; the returned request is not persisted.',
-    parameters: z.object({
-      summary: z.string().min(1).describe('A concise summary of the caller issue and requested follow-up.')
-    }),
-    async execute({ summary }) {
+    parameters: {
+      type: 'object',
+      properties: {
+        summary: {
+          type: 'string',
+          description: 'A concise summary of the caller issue and requested follow-up.'
+        }
+      },
+      required: ['summary'],
+      additionalProperties: false
+    },
+    async execute(input) {
+      const summary = stringField(input, 'summary');
+      if (!summary) return 'A non-empty support summary is required.';
       return postJson('/api/support/request', { summary }, fetchImpl);
     }
   });
@@ -86,7 +111,6 @@ function historyLine(item: unknown): string | null {
 
   const candidate = item as {
     role?: unknown;
-    type?: unknown;
     content?: unknown;
     transcript?: unknown;
     text?: unknown;
