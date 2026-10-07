@@ -2,7 +2,6 @@
 import { createReadStream, realpathSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { PACKAGE_NAME, PACKAGE_VERSION } from './package-metadata.js';
-import { createHealthPayload, startControlPlaneHttpServer } from './server.js';
 import { MAX_VERIFICATION_INPUT_BYTES, verifyAcceptanceInput } from './verification-input.js';
 
 const HELP = `AI Control Plane CLI
@@ -23,7 +22,17 @@ Environment:
   HOST    HTTP bind address (default: 0.0.0.0 for serve).
 `;
 
+const PACKAGE_INFO = JSON.stringify(
+  { name: PACKAGE_NAME, version: PACKAGE_VERSION, service: PACKAGE_NAME, packageType: 'library' },
+  null,
+  2
+);
+
 class CliInputError extends Error {}
+
+function outputJson(data: unknown): void {
+  console.log(JSON.stringify(data, null, 2));
+}
 
 function usageError(message: string): void {
   console.error(`${message}\n\n${HELP}`);
@@ -31,7 +40,9 @@ function usageError(message: string): void {
 }
 
 function assertInputSize(size: number): void {
-  if (size > MAX_VERIFICATION_INPUT_BYTES) throw new CliInputError('Verification input must not exceed 1 MiB.');
+  if (size > MAX_VERIFICATION_INPUT_BYTES) {
+    throw new CliInputError('Verification input must not exceed 1 MiB.');
+  }
 }
 
 async function readInputFile(path: string): Promise<string> {
@@ -39,10 +50,9 @@ async function readInputFile(path: string): Promise<string> {
   let size = 0;
   try {
     for await (const chunk of createReadStream(path)) {
-      const buffer = Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk);
-      size += buffer.length;
+      size += chunk.length;
       assertInputSize(size);
-      chunks.push(buffer);
+      chunks.push(chunk);
     }
   } catch (error) {
     if (error instanceof CliInputError) throw error;
@@ -54,20 +64,47 @@ async function readInputFile(path: string): Promise<string> {
 async function verifyInput(mode: string, value: string): Promise<void> {
   const input = mode === '--file' ? await readInputFile(value) : value;
   assertInputSize(Buffer.byteLength(input));
+
   let parsed: unknown;
   try {
     parsed = JSON.parse(input);
   } catch {
     throw new CliInputError('Verification input must be valid JSON.');
   }
+
   try {
     const result = verifyAcceptanceInput(parsed);
-    console.log(JSON.stringify(result));
+    outputJson(result);
     process.exitCode = result.approved ? 0 : 1;
   } catch (error) {
-    throw new CliInputError(error instanceof Error ? error.message : 'Invalid verification input.');
+    throw new CliInputError(
+      error instanceof Error ? error.message : 'Invalid verification input.'
+    );
   }
 }
+
+async function handleServe(): Promise<void> {
+  const { startControlPlaneHttpServer } = await import('./server.js');
+  await startControlPlaneHttpServer();
+}
+
+async function handleHealth(): Promise<void> {
+  const { createHealthPayload } = await import('./server.js');
+  outputJson(createHealthPayload({ serviceName: PACKAGE_NAME }));
+}
+
+const commands: Record<string, () => Promise<void>> = {
+  serve: handleServe,
+  start: handleServe,
+  health: handleHealth,
+  'package-info': () => { console.log(PACKAGE_INFO); return Promise.resolve(); },
+  '--version': () => { console.log(`${PACKAGE_NAME} ${PACKAGE_VERSION}`); return Promise.resolve(); },
+  '-v': () => { console.log(`${PACKAGE_NAME} ${PACKAGE_VERSION}`); return Promise.resolve(); },
+  version: () => { console.log(`${PACKAGE_NAME} ${PACKAGE_VERSION}`); return Promise.resolve(); },
+  '--help': () => { console.log(HELP); return Promise.resolve(); },
+  '-h': () => { console.log(HELP); return Promise.resolve(); },
+  help: () => { console.log(HELP); return Promise.resolve(); },
+};
 
 export async function runCli(argv: readonly string[] = process.argv.slice(2)): Promise<void> {
   const command = argv[0] ?? '--help';
@@ -80,7 +117,11 @@ export async function runCli(argv: readonly string[] = process.argv.slice(2)): P
     try {
       await verifyInput(argv[1], argv[2]);
     } catch (error) {
-      console.error(error instanceof CliInputError ? error.message : 'Unable to verify acceptance evidence.');
+      console.error(
+        error instanceof CliInputError
+          ? error.message
+          : 'Unable to verify acceptance evidence.'
+      );
       process.exitCode = 2;
     }
     return;
@@ -91,30 +132,13 @@ export async function runCli(argv: readonly string[] = process.argv.slice(2)): P
     return;
   }
 
-  switch (command) {
-    case '--help':
-    case '-h':
-    case 'help':
-      console.log(HELP);
-      return;
-    case '--version':
-    case '-v':
-    case 'version':
-      console.log(`${PACKAGE_NAME} ${PACKAGE_VERSION}`);
-      return;
-    case 'health':
-      console.log(JSON.stringify(createHealthPayload({ serviceName: PACKAGE_NAME }), null, 2));
-      return;
-    case 'package-info':
-      console.log(JSON.stringify({ name: PACKAGE_NAME, version: PACKAGE_VERSION, service: PACKAGE_NAME, packageType: 'library' }, null, 2));
-      return;
-    case 'serve':
-    case 'start':
-      await startControlPlaneHttpServer();
-      return;
-    default:
-      usageError('Unknown command.');
+  const handler = commands[command];
+  if (!handler) {
+    usageError('Unknown command.');
+    return;
   }
+
+  await handler();
 }
 
 export function isCliEntrypoint(moduleUrl: string): boolean {
