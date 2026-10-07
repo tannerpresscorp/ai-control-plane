@@ -1,4 +1,4 @@
-# Tannerpress AI Control Plane
+# AI Control Plane
 
 A foundation for governed multi-agent engineering workflows, with a TypeScript
 library, HTTP verification API, installable CLI, and a separate dependency-free
