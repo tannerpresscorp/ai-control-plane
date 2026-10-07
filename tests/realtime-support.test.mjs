@@ -62,7 +62,8 @@ test('mints a short-lived client secret without returning the server API key', a
     const response = await fetch(`${baseUrl}/api/realtime/session`, { method: 'POST' });
     assert.equal(response.status, 200);
     assert.equal(response.headers.get('cache-control'), 'no-store');
-    assert.deepEqual(await response.json(), {
+    const responseBody = await response.json();
+    assert.deepEqual(responseBody, {
       client_secret: 'ek_ephemeral_test',
       expires_at: 1_800_000_000
     });
@@ -74,7 +75,7 @@ test('mints a short-lived client secret without returning the server API key', a
     assert.deepEqual(requestBody.expires_after, { anchor: 'created_at', seconds: 60 });
     assert.equal(requestBody.session.type, 'realtime');
     assert.equal(requestBody.session.model, 'gpt-realtime-2.1');
-    assert.doesNotMatch(JSON.stringify(await response.clone().text()), /sk-server-only/);
+    assert.doesNotMatch(JSON.stringify(responseBody), /sk-server-only/);
   } finally {
     await close(server);
   }
