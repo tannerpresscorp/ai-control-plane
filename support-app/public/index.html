@@ -1,0 +1,94 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>AI Control Plane Support</title>
+    <style>
+      :root {
+        color-scheme: light dark;
+        font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      }
+
+      body {
+        margin: 0;
+        min-height: 100vh;
+        display: grid;
+        place-items: center;
+        background: Canvas;
+        color: CanvasText;
+      }
+
+      main {
+        width: min(92vw, 42rem);
+        padding: 2rem;
+        border: 1px solid color-mix(in srgb, CanvasText 16%, transparent);
+        border-radius: 1rem;
+      }
+
+      h1 {
+        margin-top: 0;
+        font-size: 1.5rem;
+      }
+
+      .controls {
+        display: flex;
+        gap: 0.75rem;
+        margin: 1.25rem 0;
+      }
+
+      button {
+        font: inherit;
+        padding: 0.7rem 1rem;
+        border-radius: 0.65rem;
+        border: 1px solid currentColor;
+        cursor: pointer;
+      }
+
+      button:disabled {
+        opacity: 0.5;
+        cursor: not-allowed;
+      }
+
+      #connection-status {
+        font-weight: 600;
+      }
+
+      #support-transcript {
+        min-height: 7rem;
+        white-space: pre-wrap;
+        overflow-wrap: anywhere;
+        padding: 1rem;
+        border-radius: 0.65rem;
+        background: color-mix(in srgb, CanvasText 7%, Canvas);
+      }
+
+      .note {
+        font-size: 0.9rem;
+        opacity: 0.75;
+      }
+    </style>
+    <script type="importmap">
+      {
+        "imports": {
+          "@openai/agents/realtime": "https://esm.sh/@openai/agents@0.18.0/realtime?bundle",
+          "zod": "https://esm.sh/zod@4.6.5?bundle"
+        }
+      }
+    </script>
+  </head>
+  <body>
+    <main>
+      <h1>AI Control Plane Support</h1>
+      <p id="connection-status" role="status" aria-live="polite">Not connected</p>
+      <div class="controls">
+        <button id="start-call" type="button">Start call</button>
+        <button id="end-call" type="button" disabled>End call</button>
+      </div>
+      <h2>Support transcript</h2>
+      <div id="support-transcript" aria-live="polite">Start a call to speak with support.</div>
+      <p class="note">Microphone access is requested only after you choose Start call.</p>
+    </main>
+    <script type="module" src="/app.js"></script>
+  </body>
+</html>
