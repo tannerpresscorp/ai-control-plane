@@ -181,6 +181,7 @@ export function initializeSupportApp(documentRef: Document = document): void {
       }
 
       const nextSession = createSupportSession();
+      session = nextSession;
       nextSession.on('history_updated', (history) => {
         const lines = history
           .map(historyLine)
@@ -188,10 +189,13 @@ export function initializeSupportApp(documentRef: Document = document): void {
           .slice(-8);
         transcript.textContent = lines.length > 0 ? lines.join('\n') : 'Call connected.';
       });
-      nextSession.on('error', () => setUiState('error'));
+      nextSession.on('error', () => {
+        nextSession.close();
+        if (session === nextSession) session = null;
+        setUiState('error');
+      });
 
       await nextSession.connect({ apiKey: payload.client_secret });
-      session = nextSession;
       setUiState('connected');
       nextSession.sendMessage(
         'The call has just started. Greet the caller briefly, explain that you support AI Control Plane, and ask what you can help with.'
