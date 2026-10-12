@@ -6,7 +6,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Commands
 
-The package needs Node 22+ (CI runs on Node 22 in CircleCI and Node 24 in GitHub Actions). The Python implementation needs Python 3.10+ and has no third-party dependencies.
+The package needs Node 22+ (`engines`). The effective CI gate is CircleCI (`.circleci/config.yml`, Node 22, `npm test`). `.github/workflows/actions.yml` has bare `steps:` with no `on:` or `jobs:`, so it is not a valid workflow and never runs (`.github/actions.yml` is an identical copy). The release workflow `.github/workflows/publish.yml` runs on release creation and still tests and publishes on **Node 20**, which is below the `engines` floor. The Python implementation needs Python 3.10+ and has no third-party dependencies.
 
 ```sh
 npm ci                                   # install locked deps
@@ -15,7 +15,7 @@ npm test                                 # build, then node --test tests/*.test.
 npm run build && node --test tests/verifier.test.mjs   # one test file
 npm run build && node --test --test-name-pattern "attempt" tests/*.test.mjs   # tests matching a name
 python -m unittest discover -s tests -v  # Python suite (tests/test_control_plane.py)
-npm start                                # HTTP API from dist/server.js (127.0.0.1:3000)
+npm start                                # HTTP API from dist/server.js (127.0.0.1:3000); does not build, run npm run build first
 node dist/cli.js --help                  # CLI (bin: ai-control-plane)
 OPENAI_API_KEY=... node support-app/server.mjs   # realtime voice support app; run npm run build first
 ```
@@ -38,7 +38,7 @@ There are two independent implementations of a governed agent-workflow control p
   - `lifecycle.ts` holds the run state machine: `planned → building ⇄ verifying → …`, with `approved → completed`, and `failed` as a terminal state. `transitionRun` refuses to move a run to `approved`. Entering `building` from another state increments `attempt`. Every transition increments `revision`.
   - `verifier.ts` evaluates evidence for a single attempt. For each criterion, the last evidence entry wins. Missing or failed criteria block approval.
   - `capabilities.ts` is the registry. Capability names use the `domain.action` form, and risk metadata is attached when a capability is registered.
-- `src/ledger/`: `RunLedger` port (`ports.ts`) with in-memory and Supabase adapters. Only the ledger can approve a run (`RunLedger.approve`). Approval reloads evidence and checks the revision, so an approval computed from stale evidence cannot be committed.
+- `src/ledger/`: `RunLedger` port (`ports.ts`) with in-memory and Supabase adapters. Only the ledger can approve a run (`RunLedger.approve`). Approval is allowed only from `verifying`, and the ledger re-evaluates the current attempt's stored evidence itself at approval time; for Supabase this happens inside the `approve_control_plane_run` RPC. `update()` requires `revision` to be exactly the current revision + 1, and evidence appends also bump the revision, so an update built from an older snapshot is rejected as stale.
 - `src/agents/`: governed Architect/Builder/Verifier cycle (`governed-agent-cycle.ts`, `openai-agents-runtime.ts`). It is built on a provider-neutral `StructuredAgentExecutor`. Structured outputs are validated locally (`schemas.ts`, `validators.ts`). Agent narratives are advisory and never grant approval.
 - `src/providers/`: adapters for real SDKs.
   - `openai-agents-sdk-boundary.ts` and `openai-agents-executor.ts` wrap `@openai/agents`.
