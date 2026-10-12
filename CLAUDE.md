@@ -43,7 +43,7 @@ There are two independent implementations of a governed agent-workflow control p
 - `src/providers/`: adapters for real SDKs.
   - `openai-agents-sdk-boundary.ts` and `openai-agents-executor.ts` wrap `@openai/agents`.
   - `supabase-js-client.ts` wraps `@supabase/supabase-js`.
-  - `sixtyfour-intelligence.ts` connects to the Sixtyfour service.
+  - `sixtyfour-intelligence.ts` is the Sixtyfour adapter boundary only. It delegates to an injected, normalized port and makes no network calls and uses no credentials (see `docs/SPEC-v0.5-sixtyfour-intelligence.md`). A server-side transport to the real service doesn't exist yet.
   - The SDK versions are pinned exactly in `package.json`. Contract tests run against the installed SDKs.
 - `src/intelligence/` and `src/commercial/`: governed account-qualification and commercial-ledger features. They are layered on the same pattern (see `docs/SPEC-v0.4*` and `docs/SPEC-v0.5*`).
 - Deployable surfaces:
@@ -71,4 +71,4 @@ There are two independent implementations of a governed agent-workflow control p
 
 - Commit subjects use a conventional prefix, for example `feat: add Supabase run ledger adapter`.
 - JS tests are `tests/*.test.mjs` and use `node:test` with `node:assert/strict`. Python tests use `unittest` with temporary SQLite databases.
-- Vercel deployments require signed (verified) commits. Unsigned Git-triggered deploys get canceled.
+- If the Vercel team requires verified commits, Git-triggered deploys of unsigned commits are canceled. This is a team setting, not something in `vercel.json`. See the README's Vercel section.
