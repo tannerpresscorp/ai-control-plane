@@ -3,7 +3,11 @@ import { spawnSync } from 'node:child_process';
 import test from 'node:test';
 
 function runCli(args) {
-  return spawnSync(process.execPath, ['dist/cli.js', ...args], { encoding: 'utf8' });
+  const env = { ...process.env };
+  delete env.OPENAI_API_KEY;
+  delete env.SUPABASE_URL;
+  delete env.SUPABASE_SERVICE_ROLE_KEY;
+  return spawnSync(process.execPath, ['dist/cli.js', ...args], { encoding: 'utf8', env });
 }
 
 test('CLI prints help', () => {

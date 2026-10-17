@@ -1,6 +1,7 @@
 import { createServer, type IncomingMessage, type RequestListener, type Server, type ServerResponse } from 'node:http';
 import { resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { handleOpenAIWebhook } from './openai-webhook-http.js';
 import { PACKAGE_NAME, PACKAGE_VERSION } from './package-metadata.js';
 import { MAX_VERIFICATION_INPUT_BYTES, verifyAcceptanceInput } from './verification-input.js';
 
@@ -10,6 +11,7 @@ const DEFAULT_SERVICE_NAME = 'ai-control-plane-api';
 
 export interface ControlPlaneServerEnvironment {
   readonly OPENAI_API_KEY?: string;
+  readonly OPENAI_WEBHOOK_SECRET?: string;
   readonly SUPABASE_URL?: string;
   readonly SUPABASE_SERVICE_ROLE_KEY?: string;
   readonly SIXTYFOUR_API_KEY?: string;
@@ -104,7 +106,8 @@ export function createPackageInfoPayload(options: ControlPlaneServerOptions = {}
       health: '/health',
       ready: '/ready',
       package: '/api/package',
-      verifyAcceptance: '/v1/verify-acceptance'
+      verifyAcceptance: '/v1/verify-acceptance',
+      openaiWebhook: '/webhooks/openai'
     }
   };
 }
@@ -205,6 +208,12 @@ async function handleRequest(request: IncomingMessage, response: ServerResponse,
     if (!methodAllowed(request, response, ['GET', 'HEAD'])) return;
     request.resume();
     writeJson(response, 200, createPackageInfoPayload(options));
+    return;
+  }
+
+  if (path === '/webhooks/openai') {
+    const env = options.env ?? process.env;
+    await handleOpenAIWebhook(request, response, { secret: env.OPENAI_WEBHOOK_SECRET, now: options.now });
     return;
   }
 
