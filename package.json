@@ -36,7 +36,8 @@
   },
   "dependencies": {
     "@openai/agents": "0.18.0",
-    "@supabase/supabase-js": "2.117.2"
+    "@supabase/supabase-js": "2.117.2",
+    "@vercel/analytics": "^2.0.1"
   },
   "bin": {
     "ai-control-plane": "dist/cli.js"
