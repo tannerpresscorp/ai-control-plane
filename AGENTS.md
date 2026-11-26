@@ -46,3 +46,11 @@ Recent commits use concise subjects such as `feat: add Supabase run ledger adapt
 ## Security & Configuration Tips
 
 Keep Supabase privileged credentials server-side. Preserve approval/verification gates and append-only audit behavior. Follow `supabase/README.md` when converting reviewed SQL into migrations, and validate database changes in a non-production environment first.
+
+## Branches & Decision Log
+
+- The default branch is `master`. Do not commit to it directly; work on a branch named `feat/`, `fix/`, `chore/`, `docs/`, or `refactor/` and open a pull request using `.github/pull_request_template.md`.
+- CircleCI (`.circleci/config.yml`) is the only CI for this repository. Ask before changing CI or adding dependencies.
+- Record significant design choices in `DECISIONS.md`, newest first.
+- Never commit secrets, `.env` files, or credentials.
+- `scripts/verify-agents.sh` checks that the agent instruction files are intact.
